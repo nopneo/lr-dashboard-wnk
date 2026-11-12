@@ -29,7 +29,7 @@ import store
 from cache import TTLCache
 from config import fy_of, fy_options, fy_range, load_config
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 DEV_CONTACT = "นายเผด็จชัย สิงหล โรงพยาบาลวังน้ำเขียว"
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PREFIX_RE = re.compile(r"(/[A-Za-z0-9._~-]+)+/?")
@@ -313,8 +313,7 @@ def yearly():
     today = date.today()
     return render_template("yearly.html", t=table, print_mode=request.args.get("print") == "1",
                            partial_years=[y for y in years if fy_range(y)[1] > today],
-                           year_errors=[(y, e) for y, e in zip(years, table["errors"]) if e],
-                           gated=("amph", "syphilis", "hiv", "hbv"))
+                           year_errors=[(y, e) for y, e in zip(years, table["errors"]) if e])
 
 
 @app.route("/check")

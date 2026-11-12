@@ -5,6 +5,7 @@
 
 import db
 import metrics
+import queries
 from queries import DELIVERED, NOT_ABORT_FLAG, NOT_DELIVERED, _in
 
 def _num(v):
@@ -196,10 +197,6 @@ def _labs(d1, d2, cfg):
     return _guard("labs", "ผลแล็บตอนคลอด", "LR_LAB_SYPHILIS", run)
 
 
-def _no_source(key, title, env, hint):
-    return _item(key, title, "ยังไม่มีแหล่งข้อมูล", [], "warn", env, hint)
-
-
 AMPH_NAME_LIKES = ("%%amphet%%", "%%methamph%%", "%%ยาบ้า%%")
 
 
@@ -306,6 +303,58 @@ def _amph_results(d1, d2, cfg):
     return _guard("amph_results", title, "LR_LAB_AMPH", run)
 
 
+def _pregnancy_labs(d1, d2, cfg):
+    """รายการ lab ที่แอปใช้นับแถว Syphilis/HIV/Hep B/Amphetamine (lab_order ตลอดการตั้งครรภ์ จับด้วย HN) + จำนวนมารดาที่ตรวจ"""
+    title = "ผล lab ตลอดการตั้งครรภ์ (lab_order · VDRL/TPHA, Anti-HIV, HBsAg, Methamphetamine)"
+    env = ("LR_LAB_SYPHILIS_ITEMS · LR_LAB_HIV_ITEMS · LR_LAB_HBV_ITEMS · LR_LAB_AMPH · "
+           "LR_LAB_WINDOW_BEFORE · LR_LAB_WINDOW_AFTER")
+
+    def run():
+        codes = queries.lab_item_codes(cfg)
+        test_of = {c: k for k, v in codes.items() for c in v}
+        rows = db.fetch("select i.lab_items_code code, i.lab_items_name name, count(distinct x.an) n from lab_items i "
+                        "left join (select p.an, lo.lab_items_code from ipt_pregnancy p join ipt ip on ip.an = p.an "
+                        "join lab_head lh on lh.hn = ip.hn join lab_order lo on lo.lab_order_number = lh.lab_order_number "
+                        "where p.labor_date between %(d1)s and %(d2)s and lh.order_date between "
+                        "date_sub(p.labor_date, interval %(before)s day) and date_add(p.labor_date, interval %(after)s day)) x "
+                        "on x.lab_items_code = i.lab_items_code where i.lab_items_code in %(codes)s "
+                        "group by i.lab_items_code, i.lab_items_name order by n desc",
+                        {"d1": d1, "d2": d2, "before": cfg.lab_window_before, "after": cfg.lab_window_after,
+                         "codes": _in(tuple(test_of))})
+        found = _found(rows)
+        tested = set()
+        for f in found:
+            f["name"] = f"{f['name']} → {test_of.get(f['code'], '?')}"
+            if f["n"]:
+                tested.add(test_of.get(f["code"]))
+        missing = sorted(k for k in codes if k not in tested)
+        used = "; ".join(f"{k}: {', '.join(v) or '(ไม่พบรายการ)'}" for k, v in codes.items())
+        return _item("pregnancy_labs", title, used, found, "warn" if missing else "ok", env,
+                     "นับเป็นผลบวกเมื่อพบผลบวกครั้งใดก็ได้ตั้งแต่ " + str(cfg.lab_window_before) + " วันก่อนคลอดถึง "
+                     + str(cfg.lab_window_after) + " วันหลังคลอด (รวมผลตอนฝากครรภ์) · "
+                     + ("ไม่มีมารดาที่ตรวจ: " + ", ".join(missing) + " — ตรวจรหัส lab" if missing else "ตรวจครบทั้ง 4 รายการ"))
+    return _guard("pregnancy_labs", title, env, run)
+
+
+def _substance(d1, d2, cfg):
+    """แถวสุรา/ยาเสพติด = ข้อ 17 ของแบบคัดกรองครรภ์เสี่ยง (ฟอร์ม ANC ใน HOSxP) จับคู่ด้วย HN + ช่วงตั้งครรภ์"""
+    title = "มารดาติดสุรา/ยาเสพติด — ข้อ 17 แบบคัดกรองครรภ์เสี่ยง ANC (ไม่รวมบุหรี่)"
+
+    def run():
+        flags = queries.substance_flags(d1, d2, cfg)
+        names = db.fetch("select person_anc_classifying_item_id code, person_anc_classifying_item_name name, 0 n "
+                         "from person_anc_classifying_item where person_anc_classifying_item_id in %(items)s",
+                         {"items": _in(cfg.substance_items)})
+        found = _found(names) + [
+            {"code": "มารดาที่จับคู่กับทะเบียนฝากครรภ์ได้", "name": "มีแบบคัดกรองให้ตรวจ", "n": len(flags)},
+            {"code": "ติ๊ก 'Y' ในข้อนี้", "name": "นับในตัวชี้วัด", "n": sum(1 for f in flags if f["flag"])}]
+        return _item("alcohol_smoke", title, f"person_anc_classifying_item_id: {', '.join(cfg.substance_items)}", found,
+                     "ok" if flags else "warn", "LR_SUBSTANCE_FORM_ITEMS",
+                     "ไม่รวมบุหรี่/คนใกล้ชิดสูบบุหรี่ — ไม่พบแหล่งข้อมูลในฐาน · ถ้าไม่มีมารดาจับคู่ได้เลย แถวนี้แสดง 'ไม่มีข้อมูล' "
+                     "· ผลเป็น 0 ที่แท้จริงจะมีมารดาจับคู่ได้ แต่ไม่มีใครติ๊ก")
+    return _guard("alcohol_smoke", title, "LR_SUBSTANCE_FORM_ITEMS", run)
+
+
 def audit(d1, d2, cfg):
     items = [
         _guard("reconcile", "กระทบยอดจำนวนการคลอด", "LR_DATA_AUDITED", lambda: _reconcile_item(d1, d2, cfg)),
@@ -334,8 +383,8 @@ def audit(d1, d2, cfg):
         _labs(d1, d2, cfg),
         _amph(d1, d2, cfg),
         _amph_results(d1, d2, cfg),
-        _no_source("alcohol_smoke", "สุรา/บุหรี่ของมารดา", "—",
-                   "ไม่พบแหล่งข้อมูลในฐาน (ค้นคอลัมน์ชื่อ smok/alcohol/drink แล้ว ไม่มีตารางของห้องคลอด) — ตัวชี้วัดแสดง 'ไม่มีข้อมูล'"),
+        _pregnancy_labs(d1, d2, cfg),
+        _substance(d1, d2, cfg),
     ]
     return items
 

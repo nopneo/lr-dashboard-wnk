@@ -160,12 +160,12 @@ def test_yearly_has_audit_banner_until_audited(yearly_client, monkeypatch):
     assert "ตัวเลขยังไม่ได้ตรวจ" not in yearly_client.get("/yearly").get_data(as_text=True)
 
 
-def test_yearly_rows_9_to_13_say_under_review_until_audited(yearly_client, monkeypatch):
+def test_yearly_rows_9_to_13_show_numbers_without_waiting_for_audit(yearly_client, monkeypatch):
+    # ผู้ใช้ตัดสินใจ 2026-11-12: แสดงตัวเลขแถว 9–13 ทันที (แถบเตือนด้านบนยังอยู่จนกว่าตั้ง LR_DATA_AUDITED=1)
     labs = [{"an": "a", "lab_key": "hiv", "result": "pos"}]
     monkeypatch.setattr(loader, "load_data", lambda d1, d2, cfg: data([delivery("a")], labs=labs))
-    assert "กำลังตรวจสอบข้อมูล" in yearly_client.get("/yearly").get_data(as_text=True)
-    monkeypatch.setenv("LR_DATA_AUDITED", "1")
-    assert "กำลังตรวจสอบข้อมูล" not in yearly_client.get("/yearly").get_data(as_text=True)
+    html = yearly_client.get("/yearly").get_data(as_text=True)
+    assert "กำลังตรวจสอบข้อมูล" not in html and "ตัวเลขยังไม่ได้ตรวจ" in html
 
 
 def test_yearly_year_with_failed_source_shows_warning_and_dashes_not_zeros(yearly_client, monkeypatch):

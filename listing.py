@@ -13,6 +13,8 @@ KEYS = {
     "asphyxia": "Birth asphyxia", "lbw": "ทารกน้ำหนักน้อย (LBW)", "pph": "PPH", "preterm": "คลอดก่อนกำหนด",
     "htn": "PIH / Pre-eclampsia", "prolonged": "เจ็บครรภ์ยืดเยื้อ/คลอดยาก", "fetal_distress": "Fetal distress",
     "prom": "ถุงน้ำคร่ำแตกก่อนเจ็บครรภ์",
+    "syphilis": "มารดา Syphilis (ผลบวก)", "hiv": "มารดา HIV (ผลบวก)", "hbv": "มารดา Hep B (ผลบวก)",
+    "amph": "มารดา Amphetamines (ผลบวก)", "substance": "มารดาติดสุรา/ยาเสพติด (แบบคัดกรอง ANC ข้อ 17)",
 }
 
 _DX_KEYS = {"pph": "dx_pph", "preterm": "dx_preterm", "htn": "dx_htn", "prolonged": "dx_prolonged",
@@ -43,6 +45,10 @@ def members(key, data, cfg):
         got = {r["an"] for r in inf if r["apgar1"] is not None and r["apgar1"] <= cfg.apgar1_max}
     elif key == "asphyxia":
         got = {r["an"] for r in inf if metrics.is_asphyxia(r, cfg)}
+    elif key in ("syphilis", "hiv", "hbv", "amph"):
+        got = {r["an"] for r in data["labs"] if r["lab_key"] == key and metrics.classify_result(r["result"]) == "pos"}
+    elif key == "substance":
+        got = {r["an"] for r in data.get("substance") or [] if r["flag"]}
     elif key == "lbw":
         got = {r["an"] for r in metrics.lbw_pool(data) if r["weight"] < cfg.lbw_grams}
     else:

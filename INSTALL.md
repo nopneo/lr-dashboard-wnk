@@ -104,8 +104,9 @@ sudo systemctl enable --now lr-dashboard && curl -s localhost:5400/healthz    # 
 | หัตถการระหว่างคลอด | รหัสผ่าท้อง/คีม/สุญญากาศ/ท่าก้น | ตั้ง `LR_CS_ICD9` ฯลฯ (รพ.ที่ไม่ทำจะเป็น 0 — ถูกต้อง) |
 | สถานะจำหน่ายทารก / ประเภทการคลอดของทารก | รหัสเสียชีวิต (`LR_DEAD_DCHSTTS`) และ BBA (`LR_BBA_TYPES`) | ตรวจความหมายของรหัสใน รพ. |
 | ผลแล็บตอนคลอด | VDRL/Anti-HIV/HBsAg ใน `ipt_labour_lab` และผลพิมพ์มือที่จับไม่ได้ (“ไม่ชัด”) | ตั้ง `LR_LAB_SYPHILIS/HIV/HBV` |
+| ผล lab ตลอดการตั้งครรภ์ | รายการ lab ที่เลือกจากชื่อ (VDRL/TPHA, Anti-HIV, HBsAg, Methamphetamine) และจำนวนมารดาที่ตรวจ | ตั้ง `LR_LAB_SYPHILIS_ITEMS` / `LR_LAB_HIV_ITEMS` / `LR_LAB_HBV_ITEMS` / `LR_LAB_AMPH` |
 | Amphetamine | รายการ lab ที่ชื่อคล้ายและจำนวนที่ส่งตรวจ | ตั้ง `LR_LAB_AMPH` |
-| สุรา/บุหรี่ของมารดา | ไม่มีแหล่งในฐาน → “ไม่มีข้อมูล” | บันทึกในระบบแล้วแจ้งผู้พัฒนาเพื่อเพิ่มแหล่ง |
+| สุรา/ยาเสพติดของมารดา | ข้อ 17 ของแบบคัดกรองครรภ์เสี่ยง ANC และจำนวนมารดาที่จับคู่ทะเบียนได้ (ไม่รวมบุหรี่ — ไม่มีแหล่งในฐาน) | ตั้ง `LR_SUBSTANCE_FORM_ITEMS` ให้ตรงกับข้อใน `person_anc_classifying_item` |
 
 แก้ `.env` แล้ว restart บริการ แล้วเปิด `/check` ซ้ำ จนไม่มีรายการ ⚠ ที่ไม่เข้าใจ
 

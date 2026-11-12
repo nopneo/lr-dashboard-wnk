@@ -13,13 +13,12 @@
         {% for v in r['values'] %}<td class="n">
           {%- if t.errors[loop.index0] %}<span class="nodata">—</span>
           {%- elif v is none %}<span class="nodata">ไม่มีข้อมูล</span>
-          {%- elif not audited and r.key in gated %}<span class="nodata">กำลังตรวจสอบข้อมูล</span>
           {%- else %}{{ v|num }}{% endif -%}
         </td>{% endfor %}
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  <p class="muted">“ไม่มีข้อมูล” = ฐาน HOSxP ไม่มีแหล่งข้อมูล (ไม่ใช่ 0) · “—” = อ่านข้อมูลปีนั้นไม่ครบ · แถวมารดา Syphilis/HIV/Hep B/Amphetamines แสดงตัวเลขเมื่อตั้งค่าว่าตรวจข้อมูลของ รพ. แล้ว (ดูหน้าตรวจข้อมูล)</p>
+  <p class="muted">“ไม่มีข้อมูล” = ฐาน HOSxP ไม่มีแหล่งข้อมูล (ไม่ใช่ 0) · “—” = อ่านข้อมูลปีนั้นไม่ครบ · แถวมารดา Syphilis/HIV/Hep B/Amphetamines นับผลบวกจาก lab ตลอดการตั้งครรภ์ (รวมผลตอนฝากครรภ์) · แถวสุรา/ยาเสพติดมาจากแบบคัดกรองครรภ์เสี่ยง ANC ข้อ 17 และไม่รวมบุหรี่ (ไม่มีข้อมูลในฐาน)</p>
 </article>
 {% endblock %}

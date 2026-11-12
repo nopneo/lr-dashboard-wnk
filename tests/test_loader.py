@@ -15,6 +15,8 @@ def _patch(monkeypatch, **over):
         "infants": [{"ipt_labour_id": 1, "an": "A1"}],
         "lab_results": [{"an": "A1", "lab_key": "hiv", "result": "neg"}],
         "lr_refers": [{"ym": "2026-09", "n": 2}],
+        "pregnancy_lab_results": [],
+        "substance_flags": [],
     }
     base.update(over)
     seen = {}

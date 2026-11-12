@@ -26,7 +26,8 @@ sys.path.insert(0, HERE)
 
 #: ตารางที่แดชบอร์ดอ่าน — ไม่มี = ส่วนที่ใช้ตารางนั้นล้ม
 TABLES = ["ipt_pregnancy", "ipt_labour", "ipt_labour_infant", "ipt_labour_lab", "labour_lab", "ipt_newborn", "ipt",
-          "iptdiag", "iptoprt", "referout", "lab_head", "lab_order", "lab_items", "dchstts", "patient"]
+          "iptdiag", "iptoprt", "referout", "lab_head", "lab_order", "lab_items", "dchstts", "patient", "person", "person_anc",
+          "person_anc_classifying", "person_anc_classifying_item"]
 #: สิทธิ์ที่บัญชีอ่านอย่างเดียวมีได้
 SAFE_PRIVS = {"SELECT", "USAGE", "SHOW VIEW"}
 #: การคลอดล่าสุดเก่ากว่านี้ (วัน) → เตือน (ไม่ใช่ฐานจริง / replica ไม่อัปเดต) · รพ.เล็กคลอดไม่ถึงวันละราย จึงตั้งไว้กว้าง

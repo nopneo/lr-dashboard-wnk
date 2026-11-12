@@ -18,7 +18,7 @@ LABELS = {
     "breech": "คลอดท่าก้นทางช่องคลอด", "twins": "ครรภ์แฝด", "bba": "มารดาคลอดก่อนถึงโรงพยาบาล",
     "babies": "จำนวนเด็กเกิดทั้งหมด", "live": "จำนวนเด็กเกิดมีชีพ", "still": "จำนวนเด็กเกิดไร้ชีพ",
     "neo_death7": "จำนวนเด็ก 0–7 วันตาย", "apgar1_low": "เด็กแรกเกิด Apgar score 1 นาที ≤ 7",
-    "amph": "มารดา Amphetamines", "alcohol_smoke": "มารดาติดสุรา/บุหรี่/คนใกล้ชิดสูบบุหรี่",
+    "amph": "มารดา Amphetamines", "alcohol_smoke": "มารดาติดสุรา/ยาเสพติด (ไม่รวมบุหรี่ — ไม่มีข้อมูลในฐาน)",
     "syphilis": "มารดา Syphilis", "hiv": "มารดา HIV", "hbv": "มารดา Hep B",
 }
 
@@ -202,6 +202,9 @@ def kpi_rows(data, cfg):
         n = _lab_value(data, key)
         if n is not None:
             v[key] = n
+    substance = data.get("substance") or []
+    if substance:                                    # ไม่มีมารดาคนใดจับคู่กับทะเบียน ANC ได้ = ไม่มีข้อมูล (ไม่ใช่ 0)
+        v["alcohol_smoke"] = len({r["an"] for r in substance if r["flag"] and r["an"] in set(mothers)})
     return [_row(k, v[k]) if k in v else _row(k, None, "nodata") for k in KPI_KEYS]
 
 

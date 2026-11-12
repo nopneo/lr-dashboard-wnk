@@ -65,6 +65,15 @@ class Config:
     syphilis_labs: tuple = ("1",)   # labour_lab.lab_id: 1 = VDRL
     hiv_labs: tuple = ("2",)        # 2 = Anti HIV
     hbv_labs: tuple = ("3",)        # 3 = HBsAg
+    # lab_items_code ของ VDRL/TPHA · Anti-HIV · HBsAg ใน lab_order (ว่าง = เลือกจากชื่อรายการ แบบ ANC dashboard)
+    syphilis_items: tuple = ()
+    hiv_items: tuple = ()
+    hbv_items: tuple = ()
+    # ข้อของแบบคัดกรองครรภ์เสี่ยง (person_anc_classifying_item) "ติดยาเสพติด ติดสุรา"
+    substance_items: tuple = ("17",)
+    # หน้าต่างเวลาจับผล lab/แบบคัดกรองตลอดการตั้งครรภ์: กี่วันก่อนวันคลอด · กี่วันหลังวันคลอด
+    lab_window_before: int = 300
+    lab_window_after: int = 7
     amph_labs: tuple = ("139", "590", "2104", "1992")   # lab_items: Methamphetamine / Confirm / ฟรี / Urine Amphetamine
     # หลักฐานว่าเป็น "การคลอด" (ICD-10 3 ตัวแรก) — แถวใน ipt_pregnancy ที่ไม่มีทารกและไม่มี Dx เหล่านี้ไม่นับเป็นการคลอด
     delivery_icd10: tuple = ("O80", "O81", "O82", "O83", "O84", "Z37")
@@ -100,6 +109,12 @@ def load_config(env=os.environ):
         hiv_labs=_list(g("LR_LAB_HIV")) or d.hiv_labs,
         hbv_labs=_list(g("LR_LAB_HBV")) or d.hbv_labs,
         amph_labs=_list(g("LR_LAB_AMPH")) or d.amph_labs,
+        syphilis_items=_list(g("LR_LAB_SYPHILIS_ITEMS")) or d.syphilis_items,
+        hiv_items=_list(g("LR_LAB_HIV_ITEMS")) or d.hiv_items,
+        hbv_items=_list(g("LR_LAB_HBV_ITEMS")) or d.hbv_items,
+        substance_items=_list(g("LR_SUBSTANCE_FORM_ITEMS")) or d.substance_items,
+        lab_window_before=int(_num(g("LR_LAB_WINDOW_BEFORE"), d.lab_window_before)),
+        lab_window_after=int(_num(g("LR_LAB_WINDOW_AFTER"), d.lab_window_after)),
         delivery_icd10=_dx(g("LR_DELIVERY_ICD10")) or d.delivery_icd10,
     )
 

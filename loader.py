@@ -10,7 +10,8 @@ import queries
 
 log = logging.getLogger(__name__)
 
-SOURCES = ("deliveries", "delivery_dx", "delivery_ops", "infants", "lab_results", "lr_refers")
+SOURCES = ("deliveries", "delivery_dx", "delivery_ops", "infants", "lab_results", "pregnancy_lab_results",
+           "substance_flags", "lr_refers")
 
 
 def load_data(d1, d2, cfg):
@@ -28,4 +29,5 @@ def load_data(d1, d2, cfg):
     for r in got["delivery_ops"]:
         ops[r["an"]].add(r["icd9"])
     return {"deliveries": got["deliveries"], "dx_by_an": dict(dx), "ops_by_an": dict(ops),
-            "infants": got["infants"], "labs": got["lab_results"], "refers": got["lr_refers"], "errors": errors}
+            "infants": got["infants"], "labs": got["lab_results"] + got["pregnancy_lab_results"],
+            "substance": got["substance_flags"], "refers": got["lr_refers"], "errors": errors}

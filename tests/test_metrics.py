@@ -20,10 +20,10 @@ def infant(lid, an, **kw):
     return r
 
 
-def data(deliveries=(), dx=None, ops=None, infants=(), labs=(), refers=()):
+def data(deliveries=(), dx=None, ops=None, infants=(), labs=(), refers=(), substance=()):
     return {"deliveries": list(deliveries), "dx_by_an": {k: set(v) for k, v in (dx or {}).items()},
             "ops_by_an": {k: set(v) for k, v in (ops or {}).items()}, "infants": list(infants),
-            "labs": list(labs), "refers": list(refers), "errors": []}
+            "labs": list(labs), "refers": list(refers), "substance": list(substance), "errors": []}
 
 
 def val(rows, key):
