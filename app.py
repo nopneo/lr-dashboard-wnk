@@ -102,6 +102,7 @@ def _branding():
         "version": VERSION, "css_v": VERSION,
         "dev_contact": os.getenv("LR_DEV_CONTACT", DEV_CONTACT),
         "check_allowed": _check_allowed(),
+        "audited": os.getenv("LR_DATA_AUDITED") == "1",
     }
 
 
@@ -199,10 +200,14 @@ def _parse_fy(v):
     return fy if 2550 <= fy <= current_fy() + 1 else None
 
 
+#: ช่วงเองต้องยาวอย่างน้อยเท่านี้ (วัน) — รพ.ที่คลอดสัปดาห์ละไม่กี่ราย ช่วง 1 วันทำให้ตัวเลขชี้ไปที่ผู้ป่วยรายเดียว
+MIN_DAYS, MAX_DAYS = 28, 400
+
+
 def resolve_range(args):
-    """(d1, d2, fy|None) — fy ผิด/ไม่ส่ง = ปีงบปัจจุบัน · ส่ง d1,d2 ที่ถูกต้อง (≤ 400 วัน) = ช่วงเอง"""
+    """(d1, d2, fy|None) — fy ผิด/ไม่ส่ง = ปีงบปัจจุบัน · ส่ง d1,d2 ที่ถูกต้องยาว MIN_DAYS–MAX_DAYS วัน = ช่วงเอง"""
     a, b = _parse_date(args.get("d1")), _parse_date(args.get("d2"))
-    if a and b and a <= b and (b - a).days <= 400:
+    if a and b and a <= b and MIN_DAYS <= (b - a).days + 1 <= MAX_DAYS:
         return a, b, None
     fy = _parse_fy(args.get("fy")) or current_fy()
     return (*fy_range(fy), fy)
@@ -222,7 +227,8 @@ def _data(d1, d2, cfg):
     if hit is not None:
         return hit
     data = loader.load_data(d1, d2, cfg)
-    _cache.set(key, data)
+    if not data.get("errors"):
+        _cache.set(key, data)            # ผลที่อ่านไม่ครบ (แหล่งใดล่ม) ไม่แคช — ลองใหม่ในคำขอถัดไป
     return data
 
 
@@ -232,12 +238,15 @@ def _delta(cur, prev):
     return round((cur - prev) * 100.0 / prev, 1)
 
 
-def build_context(d1, d2, fy=None):
+def build_context(d1, d2, fy=None, today=None):
     cfg = load_config()
+    today = today or date.today()
+    partial = d2 > today                  # ปีงบ/ช่วงที่ยังไม่สิ้นสุด: ไม่เทียบกับปีงบก่อนที่ครบปีแล้ว (จะดูเหมือนลดฮวบ)
     data = _data(d1, d2, cfg)
     kpi = {r["key"]: r for r in metrics.kpi_rows(data, cfg)}
+    uncoded = len(metrics.uncoded_ans(data, cfg))
     prev_kpi, prev_ref = {}, None
-    if fy:
+    if fy and not partial:
         pdata = _data(*fy_range(fy - 1), cfg)
         prev_kpi = {r["key"]: r for r in metrics.kpi_rows(pdata, cfg)}
         prev_ref = sum(r["n"] for r in pdata["refers"])
@@ -253,13 +262,13 @@ def build_context(d1, d2, fy=None):
     ]
     months = metrics.monthly(data, cfg, months_between(d1, d2))
     try:
-        recent = queries.recent_counts(date.today(), cfg)
+        recent = queries.recent_counts(today, cfg)
     except Exception:                                            # noqa: BLE001
         recent = {"days7": None}
     donut_parts = [("คลอดปกติ", kpi["normal"]["value"], charts.C_NORMAL),
                    ("มีภาวะแทรกซ้อน/หัตถการ", kpi["abnormal"]["value"], charts.C_COMPLICATED),
-                   ("ส่งต่อ", refers, charts.C_REFERRED)]
-    return {"d1": d1, "d2": d2, "fy": fy, "cards": cards, "kpi": kpi, "months": months,
+                   ("ยังไม่ลงรหัส Dx คลอด", uncoded, charts.C_UNCODED), ("ส่งต่อ", refers, charts.C_REFERRED)]
+    return {"d1": d1, "d2": d2, "fy": fy, "partial": partial, "uncoded": uncoded, "cards": cards, "kpi": kpi, "months": months,
             "bar_svg": charts.stacked_bar(months), "donut_svg": charts.donut(donut_parts),
             "quality": metrics.quality_grid(data, cfg), "recent": recent, "errors": data["errors"],
             "audited": os.getenv("LR_DATA_AUDITED") == "1"}
@@ -301,7 +310,11 @@ def yearly():
     cfg = load_config()
     years = fy_options(n=6)[::-1]   # 5 ปีงบที่ผ่านมา + ปีปัจจุบัน (ครอบคลุมปีเดียวกับ kpi.jpg)
     table = metrics.yearly_table(lambda a, b: _data(a, b, cfg), years, cfg)
-    return render_template("yearly.html", t=table, print_mode=request.args.get("print") == "1")
+    today = date.today()
+    return render_template("yearly.html", t=table, print_mode=request.args.get("print") == "1",
+                           partial_years=[y for y in years if fy_range(y)[1] > today],
+                           year_errors=[(y, e) for y, e in zip(years, table["errors"]) if e],
+                           gated=("amph", "syphilis", "hiv", "hbv"))
 
 
 @app.route("/check")
@@ -327,10 +340,11 @@ def list_enabled():
 
 
 def _list_gate():
-    """หน้ารายชื่อ/login: ปิดเมื่อไม่ตั้ง LR_SECRET_KEY · LR_LIST_LAN_ONLY=1 = เข้าได้เฉพาะเครื่องใน รพ."""
+    """หน้ารายชื่อ/login: ปิดเมื่อไม่ตั้ง LR_SECRET_KEY · เข้าได้เฉพาะเครื่องใน รพ. เป็นค่าเริ่มต้น
+    (ข้อมูลผู้ป่วยต้องไม่ออกอินเทอร์เน็ต) — LR_LIST_LAN_ONLY=0 เพื่อปิดข้อจำกัดนี้ด้วยตัวเอง"""
     if not list_enabled():
         abort(404)
-    if os.getenv("LR_LIST_LAN_ONLY", "0") == "1" and not _from_lan():
+    if os.getenv("LR_LIST_LAN_ONLY", "1") != "0" and not _from_lan():
         abort(403)
 
 
@@ -453,8 +467,8 @@ def list_page(key):
 
 MIME = {"png": "image/png", "jpg": "image/jpeg", "pdf": "application/pdf"}
 EXPORT_ENABLED = os.getenv("LR_EXPORT", "1") == "1"
-EXPORT_CACHE_TTL, EXPORT_WAIT = 300, 60
-_export_cache = TTLCache(maxsize=8)
+EXPORT_CACHE_TTL, EXPORT_WAIT = 300, 20
+_export_cache = TTLCache(maxsize=128)
 _render_lock = threading.Lock()
 
 
@@ -463,10 +477,11 @@ def export(fmt):
     """ส่งออกหน้าแดชบอร์ดเป็น PNG / JPG / PDF ด้วย chromium headless (เรียกหน้าเดิมด้วย ?print=1 — ไม่มีแถบเตือน)"""
     if fmt not in MIME or not EXPORT_ENABLED:
         return {"error": "รองรับเฉพาะ png, jpg, pdf" if EXPORT_ENABLED else "ปิดการส่งออกไฟล์"}, 404
-    d1, d2, fy = resolve_range(request.args)
-    qs = urllib.parse.urlencode({"fy": fy, "print": "1"} if fy else {"d1": d1.isoformat(), "d2": d2.isoformat(), "print": "1"})
+    # ส่งออกเฉพาะ "ปีงบ" (ไม่รับ d1/d2 เอง) — หน้านี้ไม่ต้อง login จึงจำกัดจำนวนชุดที่ต้องเรนเดอร์ (chromium หนัก)
+    fy = _parse_fy(request.args.get("fy")) or current_fy()
+    qs = urllib.parse.urlencode({"fy": fy, "print": "1"})
     url = f"http://127.0.0.1:{os.getenv('PORT', '5400')}/?{qs}"
-    name = f"lr_{fy}.{fmt}" if fy else f"lr_{d1}_{d2}.{fmt}"
+    name = f"lr_{fy}.{fmt}"
     blob = _export_cache.get(name, EXPORT_CACHE_TTL)
     if blob is not None:
         return send_file(BytesIO(blob), mimetype=MIME[fmt], as_attachment=True, download_name=name)

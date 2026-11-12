@@ -7,7 +7,8 @@ import metrics
 
 #: key → ชื่อหัวข้อรายชื่อ
 KEYS = {
-    "mothers": "การคลอดทั้งหมด", "normal": "คลอดปกติ", "abnormal": "คลอดผิดปกติ/มีภาวะแทรกซ้อน", "twins": "ครรภ์แฝด",
+    "mothers": "การคลอดทั้งหมด", "normal": "คลอดปกติ", "abnormal": "คลอดผิดปกติ/มีภาวะแทรกซ้อน",
+    "uncoded": "ยังไม่ลงรหัส Dx คลอด", "twins": "ครรภ์แฝด",
     "bba": "คลอดก่อนถึงโรงพยาบาล (BBA)", "still": "เด็กเกิดไร้ชีพ", "apgar1_low": "Apgar 1 นาที ≤ เกณฑ์",
     "asphyxia": "Birth asphyxia", "lbw": "ทารกน้ำหนักน้อย (LBW)", "pph": "PPH", "preterm": "คลอดก่อนกำหนด",
     "htn": "PIH / Pre-eclampsia", "prolonged": "เจ็บครรภ์ยืดเยื้อ/คลอดยาก", "fetal_distress": "Fetal distress",
@@ -29,9 +30,11 @@ def members(key, data, cfg):
     elif key == "normal":
         got = metrics.normal_ans(data, cfg)
     elif key == "abnormal":
-        got = mothers - metrics.normal_ans(data, cfg)
+        got = metrics.abnormal_ans(data, cfg)
+    elif key == "uncoded":
+        got = set(metrics.uncoded_ans(data, cfg))
     elif key == "twins":
-        got = metrics.twin_ans(data)
+        got = metrics.twin_ans(data, cfg)
     elif key == "bba":
         got = {r["an"] for r in inf if r["bba_type"] in cfg.bba_types}
     elif key == "still":

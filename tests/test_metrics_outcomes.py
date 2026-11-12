@@ -42,7 +42,7 @@ def test_empty_period_everything_zero_or_none_never_crash():
     rows = metrics.kpi_rows(d, CFG)
     assert val(rows, "mothers") == 0 and val(rows, "babies") == 0
     assert metrics.pct(0, 0) is None
-    assert metrics.monthly(d, CFG, MONTHS)[0] == {"ym": "2026-10", "normal": 0, "complicated": 0, "referred": 0}
+    assert metrics.monthly(d, CFG, MONTHS)[0] == {"ym": "2026-10", "normal": 0, "complicated": 0, "uncoded": 0, "referred": 0}
     assert all(isinstance(g["n"], int) for g in metrics.quality_grid(d, CFG))
 
 
@@ -70,8 +70,8 @@ def test_monthly_splits_normal_complicated_and_refers():
              dx={"a": ["O800"], "b": ["O800", "O60"], "c": ["O800"]},
              refers=[{"ym": "2026-10", "n": 2}])
     m = metrics.monthly(d, CFG, MONTHS)
-    assert m[0] == {"ym": "2026-10", "normal": 1, "complicated": 1, "referred": 2}
-    assert m[1] == {"ym": "2026-11", "normal": 1, "complicated": 0, "referred": 0}
+    assert m[0] == {"ym": "2026-10", "normal": 1, "complicated": 1, "uncoded": 0, "referred": 2}
+    assert m[1] == {"ym": "2026-11", "normal": 1, "complicated": 0, "uncoded": 0, "referred": 0}
 
 
 def test_quality_grid_counts():

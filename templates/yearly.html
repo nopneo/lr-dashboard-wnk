@@ -1,18 +1,25 @@
 {% extends "base.html" %}
 {% block title %}ผลงานรายปี{% endblock %}
 {% block body %}
+{% if not print_mode %}{% include "_audit_bar.html" %}{% endif %}
+{% for y, errs in year_errors %}<div class="err-bar">อ่านข้อมูลของปี {{ y }} ไม่ครบ ({{ errs|join(', ') }}) — แสดงเป็นขีด ไม่ใช่ 0</div>{% endfor %}
 <article class="panel wide"><h3>สถิติบริการ — ปีงบประมาณ {{ t.years|join(' · ') }}</h3>
   <table class="yt">
-    <thead><tr><th>สถิติบริการ</th>{% for y in t.years %}<th>ปี {{ y }}</th>{% endfor %}</tr></thead>
+    <thead><tr><th>สถิติบริการ</th>{% for y in t.years %}<th>ปี {{ y }}{% if y in partial_years %}<br><small>ยังไม่ครบปี</small>{% endif %}</th>{% endfor %}</tr></thead>
     <tbody>
     {% for r in t.rows %}
       <tr class="{{ 'sub' if r.key in ('normal','abnormal','cs','forceps','vacuum','breech') }}">
         <td>{{ r.label }}</td>
-        {% for v in r['values'] %}<td class="n">{% if v is none %}<span class="nodata">ไม่มีข้อมูล</span>{% else %}{{ v|num }}{% endif %}</td>{% endfor %}
+        {% for v in r['values'] %}<td class="n">
+          {%- if t.errors[loop.index0] %}<span class="nodata">—</span>
+          {%- elif v is none %}<span class="nodata">ไม่มีข้อมูล</span>
+          {%- elif not audited and r.key in gated %}<span class="nodata">กำลังตรวจสอบข้อมูล</span>
+          {%- else %}{{ v|num }}{% endif -%}
+        </td>{% endfor %}
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  <p class="muted">แถวที่ขึ้น “ไม่มีข้อมูล” = ฐาน HOSxP ยังไม่มีแหล่งข้อมูลหรือยังไม่ได้ยืนยัน (ไม่ใช่ 0) — ดูรายละเอียดที่หน้าตรวจข้อมูล</p>
+  <p class="muted">“ไม่มีข้อมูล” = ฐาน HOSxP ไม่มีแหล่งข้อมูล (ไม่ใช่ 0) · “—” = อ่านข้อมูลปีนั้นไม่ครบ · แถวมารดา Syphilis/HIV/Hep B/Amphetamines แสดงตัวเลขเมื่อตั้งค่าว่าตรวจข้อมูลของ รพ. แล้ว (ดูหน้าตรวจข้อมูล)</p>
 </article>
 {% endblock %}

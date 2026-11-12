@@ -11,17 +11,11 @@
     </select></label>
   <span class="range">{{ d.d1|thai_date }} – {{ d.d2|thai_date }}</span>
 </form>
-{% if not d.audited %}
-{# ซ่อนเมื่อตั้ง LR_DATA_AUDITED=1 หรือกด "ยืนยันว่าตรวจแล้ว" ที่หน้า /check · ไม่แสดงในโหมดพิมพ์ (?print=1) ที่ใช้ส่งออก #}
-<div class="audit-bar" data-audit-key="lr-audited:{{ hospital }}"><div>{{ icon('alert', 18) }}
-  <span><b>ตัวเลขยังไม่ได้ตรวจกับข้อมูลของโรงพยาบาลนี้</b> — รหัสใน HOSxP (Dx, หัตถการ, สถานะทารก, แล็บ) ของแต่ละโรงพยาบาลไม่เหมือนกัน
-  {% if check_allowed %}เปิด <a href="{{ url_for('check_page') }}">ตรวจข้อมูลก่อนใช้</a> ก่อนนำตัวเลขไปใช้
-  {% else %}ให้ผู้ดูแลระบบเปิดหน้าตรวจข้อมูลจากเครื่องในโรงพยาบาลก่อนนำตัวเลขไปใช้{% endif %}</span>
-</div></div>
-<script>(function(){var b=document.currentScript.previousElementSibling;try{if(localStorage.getItem(b.dataset.auditKey))b.remove();}catch(e){}})();</script>
-{% endif %}
+{% include "_audit_bar.html" %}
 {% endif %}
 {% if d.errors %}<div class="err-bar">อ่านข้อมูลบางส่วนไม่ได้: {{ d.errors|join(', ') }} — ตัวเลขที่เกี่ยวข้องอาจต่ำกว่าความจริง</div>{% endif %}
+{% if d.partial %}<div class="note-bar">ช่วงนี้ยังไม่สิ้นสุด — ตัวเลขเป็นยอดสะสมถึงปัจจุบัน จึงไม่เทียบกับปีงบก่อนที่ครบปีแล้ว</div>{% endif %}
+{% if d.uncoded %}<div class="note-bar">มี {{ d.uncoded|num }} ราย ที่คลอดแล้วแต่ยังไม่ลงรหัส Dx คลอด — จัดไว้แยก (สีเทา) ไม่นับเป็นคลอดผิดปกติจนกว่าจะลงรหัส</div>{% endif %}
 
 <section class="cards">
   {% for c in d.cards %}
@@ -36,7 +30,7 @@
 
 <section class="two">
   <article class="panel"><h3>จำนวนการคลอดรายเดือน</h3>
-    <div class="key"><i style="background:#1e88e5"></i>คลอดปกติ <i style="background:#ec6b9a"></i>มีภาวะแทรกซ้อน/หัตถการ <i style="background:#f5a623"></i>ส่งต่อ (ไม่นับเป็นคลอดที่ รพ.)</div>
+    <div class="key"><i style="background:#1e88e5"></i>คลอดปกติ <i style="background:#ec6b9a"></i>มีภาวะแทรกซ้อน/หัตถการ <i style="background:#9aa7b8"></i>ยังไม่ลงรหัส Dx <i style="background:#f5a623"></i>ส่งต่อ (ไม่นับเป็นคลอดที่ รพ.)</div>
     {{ d.bar_svg }}</article>
   <article class="panel"><h3>สัดส่วนผู้มาคลอดที่ห้องคลอด</h3>{{ d.donut_svg }}
     <p class="muted">ตัวเลขกลางวง = คลอดที่ รพ. + ส่งต่อ (รวมส่งต่อ) · การ์ด “การคลอดทั้งหมด” นับเฉพาะที่คลอดที่ รพ.</p></article>

@@ -29,6 +29,8 @@ OUT_DIR = os.path.join(HERE, "out")
 WIDTH = 1440
 #: สูงเผื่อไว้ก่อน แล้วค่อยตัดพื้นหลังส่วนเกินทิ้งด้วย Pillow (หน้า LR ยาว ~1,700 px)
 HEIGHT = 2800
+#: เวลารอ chromium สูงสุด (วินาที) — ต้องน้อยกว่า --timeout ของ gunicorn (120) ไม่งั้น worker ถูกฆ่ากลางทาง
+TIMEOUT = 100
 
 BROWSERS = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -103,7 +105,7 @@ def shot(browser, url, png_path, scale=2):
             f"--window-size={WIDTH},{HEIGHT}",
             f"--screenshot={png_path}",
             url,
-        ], check=True, timeout=180,
+        ], check=True, timeout=TIMEOUT,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -130,7 +132,7 @@ def to_pdf(browser, url, pdf_path):
         subprocess.run(_base_args(browser, profile) + [
             "--no-pdf-header-footer", "--virtual-time-budget=8000",
             f"--print-to-pdf={pdf_path}", url,
-        ], check=True, timeout=180,
+        ], check=True, timeout=TIMEOUT,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

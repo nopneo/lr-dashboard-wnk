@@ -1,0 +1,10 @@
+{% from "_macros.html" import icon %}
+{% if not audited %}
+{# ซ่อนเมื่อตั้ง LR_DATA_AUDITED=1 หรือกด "ยืนยันว่าตรวจแล้ว" ที่หน้า /check · include เฉพาะนอกโหมดพิมพ์ (?print=1) ที่ใช้ส่งออก #}
+<div class="audit-bar" data-audit-key="lr-audited:{{ hospital }}"><div>{{ icon('alert', 18) }}
+  <span><b>ตัวเลขยังไม่ได้ตรวจกับข้อมูลของโรงพยาบาลนี้</b> — รหัสใน HOSxP (Dx, หัตถการ, สถานะทารก, แล็บ) ของแต่ละโรงพยาบาลไม่เหมือนกัน
+  {% if check_allowed %}เปิด <a href="{{ url_for('check_page') }}">ตรวจข้อมูลก่อนใช้</a> ก่อนนำตัวเลขไปใช้
+  {% else %}ให้ผู้ดูแลระบบเปิดหน้าตรวจข้อมูลจากเครื่องในโรงพยาบาลก่อนนำตัวเลขไปใช้{% endif %}</span>
+</div></div>
+<script>(function(){var b=document.currentScript.previousElementSibling;try{if(localStorage.getItem(b.dataset.auditKey))b.remove();}catch(e){}})();</script>
+{% endif %}

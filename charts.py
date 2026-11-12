@@ -5,7 +5,7 @@ import math
 from markupsafe import Markup, escape
 
 TH_MONTHS = ("", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.")
-C_NORMAL, C_COMPLICATED, C_REFERRED = "#1e88e5", "#ec6b9a", "#f5a623"
+C_NORMAL, C_COMPLICATED, C_REFERRED, C_UNCODED = "#1e88e5", "#ec6b9a", "#f5a623", "#9aa7b8"
 
 
 def month_label(ym):
@@ -23,7 +23,7 @@ def stacked_bar(months, width=760, height=300):
     """months: [{ym, normal, complicated, referred}] · แท่งซ้อน ปกติ+แทรกซ้อน = คลอดที่ รพ. · ส่งต่อ = แท่งเล็กข้างกัน"""
     left, right, top, bottom = 38, 8, 26, 34
     ph, pw = height - top - bottom, width - left - right
-    peak = max([max(m["normal"] + m["complicated"], m["referred"]) for m in months] or [0])
+    peak = max([max(m["normal"] + m["complicated"] + m.get("uncoded", 0), m["referred"]) for m in months] or [0])
     if peak == 0:
         return Markup(f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="ไม่มีข้อมูล" class="chart">'
                       f'<text x="{width / 2}" y="{height / 2}" text-anchor="middle" class="muted-t">ไม่มีข้อมูล</text></svg>')
@@ -38,7 +38,7 @@ def stacked_bar(months, width=760, height=300):
     bw = min(34.0, slot * 0.46)
     for i, m in enumerate(months):
         cx = left + slot * (i + 0.5)
-        n, c, r = m["normal"], m["complicated"], m["referred"]
+        n, c, r, u = m["normal"], m["complicated"], m["referred"], m.get("uncoded", 0)
         x0 = cx - bw / 2 - (4 if r else 0)
         parts.append('<g class="bar-col">')
         if n:
@@ -47,7 +47,10 @@ def stacked_bar(months, width=760, height=300):
         if c:
             parts.append(f'<rect x="{x0:.1f}" y="{y(n + c):.1f}" width="{bw:.1f}" height="{y(n) - y(n + c):.1f}" '
                          f'fill="{C_COMPLICATED}" rx="2"><title>มีภาวะแทรกซ้อน {c}</title></rect>')
-        total = n + c
+        if u:
+            parts.append(f'<rect x="{x0:.1f}" y="{y(n + c + u):.1f}" width="{bw:.1f}" height="{y(n + c) - y(n + c + u):.1f}" '
+                         f'fill="{C_UNCODED}" rx="2"><title>ยังไม่ลงรหัส Dx คลอด {u}</title></rect>')
+        total = n + c + u
         parts.append(f'<text x="{x0 + bw / 2:.1f}" y="{y(total) - 5:.1f}" text-anchor="middle" class="val">{total}</text>')
         if r:
             rw = max(8.0, bw * 0.34)

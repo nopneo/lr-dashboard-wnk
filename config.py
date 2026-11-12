@@ -48,6 +48,7 @@ class Config:
     # ทารก
     stillbirth_icd10: tuple = ("P95", "Z371", "Z373", "Z374", "Z376")
     dead_dchstts: tuple = ("08", "09")
+    stillbirth_dchstts: tuple = ("08",)          # master dchstts: 08 = Dead Still Birth
     bba_types: tuple = ("3",)
     apgar1_max: int = 7
     asphyxia_apgar5: int = 7
@@ -83,6 +84,7 @@ def load_config(env=os.environ):
         breech_icd10=_dx(g("LR_BREECH_ICD10")) or d.breech_icd10,
         stillbirth_icd10=_dx(g("LR_STILLBIRTH_ICD10")) or d.stillbirth_icd10,
         dead_dchstts=_list(g("LR_DEAD_DCHSTTS")) or d.dead_dchstts,
+        stillbirth_dchstts=_list(g("LR_STILLBIRTH_DCHSTTS")) or d.stillbirth_dchstts,
         bba_types=_list(g("LR_BBA_TYPES")) or d.bba_types,
         apgar1_max=int(_num(g("LR_APGAR1_MAX"), d.apgar1_max)),
         asphyxia_apgar5=int(_num(g("LR_ASPHYXIA_APGAR5"), d.asphyxia_apgar5)),

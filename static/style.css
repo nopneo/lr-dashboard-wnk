@@ -99,3 +99,6 @@ body.print .audit-bar { display: none; }
 .klist a { display: block; padding: 10px 14px; background: var(--sky); border-radius: 10px; text-decoration: none; color: var(--navy); font-weight: 600; }
 .nav-out { margin-left: auto; display: flex; align-items: center; }
 .linkbtn { background: none; border: 0; color: var(--blue); padding: 8px 4px; cursor: pointer; text-decoration: underline; }
+
+.note-bar { background: var(--sky); border: 1px solid var(--line); color: var(--navy); border-radius: 12px; padding: 9px 16px; font-size: 15px; }
+.yt th small { font-weight: 400; opacity: .85; }
