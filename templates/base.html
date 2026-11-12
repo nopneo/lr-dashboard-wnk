@@ -17,6 +17,8 @@
   <a href="{{ url_for('index') }}" class="{{ 'on' if request.endpoint == 'index' }}">ภาพรวม LR</a>
   <a href="{{ url_for('yearly') }}" class="{{ 'on' if request.endpoint == 'yearly' }}">ผลงานรายปี</a>
   {% if check_allowed %}<a href="{{ url_for('check_page') }}" class="{{ 'on' if request.endpoint == 'check_page' }}">ตรวจข้อมูลก่อนใช้</a>{% endif %}
+  {% if list_on %}<a href="{{ url_for('list_index') }}" class="{{ 'on' if request.endpoint in ('list_index', 'list_page', 'login') }}">รายชื่อ</a>{% endif %}
+  {% if user %}<form method="post" action="{{ url_for('logout') }}" class="nav-out"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button type="submit" class="linkbtn">ออกจากระบบ ({{ user.display }})</button></form>{% endif %}
 </nav>
 {% endif %}
 <main>{% block body %}{% endblock %}</main>

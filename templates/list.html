@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}รายชื่อ — {{ title }}{% endblock %}
+{% block body %}
+<p><a href="{{ url_for('list_index', fy=fy) if fy else url_for('list_index', d1=d1, d2=d2) }}">← กลับรายการ</a></p>
+<article class="panel wide"><h3>{{ title }} — {{ rows|length }} ราย</h3>
+  <p class="muted">{{ d1|thai_date }} – {{ d2|thai_date }} · ข้อมูลระบุตัวผู้ป่วย ห้ามส่งออกนอกเครือข่ายโรงพยาบาล</p>
+  <table class="yt">
+    <thead><tr>{% for h in head %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td>{{ r.date|thai_date if r.date else '—' }}</td><td>{{ r.hn }}</td><td>{{ r.an }}</td><td>{{ r.name }}</td><td>{{ r.dx }}</td></tr>
+    {% else %}
+      <tr><td colspan="{{ head|length }}" class="muted">ไม่มีรายการในช่วงนี้</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</article>
+{% endblock %}

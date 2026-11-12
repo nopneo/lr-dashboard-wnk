@@ -6,16 +6,26 @@
 import ipaddress
 import os
 import re
+import secrets
+import tempfile
+import threading
+import urllib.parse
 from datetime import date, timedelta
+from functools import wraps
+from io import BytesIO
+from urllib.parse import urlsplit
 
-from flask import Flask, abort, render_template, request, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, session, url_for
 
 import audit
 import charts
 import db
+import listing
 import loader
 import metrics
 import queries
+import render
+import store
 from cache import TTLCache
 from config import fy_of, fy_options, fy_range, load_config
 
@@ -47,6 +57,12 @@ class PrefixMiddleware:
 
 app = Flask(__name__)
 app.wsgi_app = PrefixMiddleware(app.wsgi_app)
+#: กุญแจ session ของหน้ารายชื่อ — ไม่ตั้ง = ปิดหน้ารายชื่อ/login ทั้งหมด (แดชบอร์ดตัวเลขยังใช้ได้)
+#: สุ่มเองไม่ได้: gunicorn หลาย worker จะได้กุญแจคนละตัว และ login หลุดทุกครั้งที่ restart
+app.secret_key = os.getenv("LR_SECRET_KEY") or None
+#: ชื่อ cookie ของตัวเอง — แอปอื่นบนโดเมนเดียวกันใช้ "session" (Path=/) ถ้าซ้ำ login ที่หนึ่งจะหลุดอีกที่
+app.config.update(SESSION_COOKIE_NAME="lr_session", SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  SESSION_COOKIE_SECURE=os.getenv("LR_COOKIE_SECURE", "0") == "1", PERMANENT_SESSION_LIFETIME=8 * 3600)
 _cache = TTLCache(maxsize=64)
 _hosp_cache = TTLCache(maxsize=4)
 
@@ -298,6 +314,176 @@ def check_page():
     items = audit.audit(d1, d2, cfg)
     comp = audit.completeness(_data(d1, d2, cfg), cfg)
     return render_template("check.html", items=items, comp=comp, d1=d1, d2=d2, fy=fy, fy_list=fy_options(n=8))
+
+
+# ---------------------------------------------------------------- login (หน้ารายชื่อ)
+
+#: login ผิดเกินจำนวนนี้ใน LOGIN_WINDOW นาที → ปฏิเสธชั่วคราว (ตามชื่อผู้ใช้ / ตาม IP)
+LOGIN_MAX_USER, LOGIN_MAX_IP, LOGIN_WINDOW = 10, 30, 15
+
+
+def list_enabled():
+    return bool(app.secret_key)
+
+
+def _list_gate():
+    """หน้ารายชื่อ/login: ปิดเมื่อไม่ตั้ง LR_SECRET_KEY · LR_LIST_LAN_ONLY=1 = เข้าได้เฉพาะเครื่องใน รพ."""
+    if not list_enabled():
+        abort(404)
+    if os.getenv("LR_LIST_LAN_ONLY", "0") == "1" and not _from_lan():
+        abort(403)
+
+
+def _load_user():
+    uid = session.get("uid") if list_enabled() else None
+    g.user = store.get_user(uid) if uid else None
+    return g.user
+
+
+def _audit_log(action, detail=None):
+    store.log(g.user["username"] if g.get("user") else None, action, detail, _client_ip())
+
+
+def login_required(f):
+    @wraps(f)
+    def wrap(*a, **kw):
+        _list_gate()
+        if not _load_user():
+            # script_root = sub-path หลัง proxy (เช่น /lr) — ไม่ใส่จะเด้งไปเว็บหลักของ รพ.
+            return redirect(url_for("login", next=request.script_root + request.full_path))
+        return f(*a, **kw)
+    return wrap
+
+
+def _csrf_token():
+    if "csrf" not in session:
+        session["csrf"] = secrets.token_hex(16)
+    return session["csrf"]
+
+
+def _check_csrf():
+    # session ใหม่ไม่มี csrf → "" == "" ผ่านได้ จึงต้องมีค่าจริงด้วย
+    sent, want = request.form.get("csrf", ""), session.get("csrf", "")
+    if not want or not secrets.compare_digest(sent, want):
+        abort(400)
+
+
+@app.context_processor
+def _list_ctx():
+    return {"list_on": list_enabled(), "csrf_token": _csrf_token if list_enabled() else (lambda: ""),
+            "user": g.get("user")}
+
+
+def _safe_next(nxt):
+    """next= หลัง login: รับเฉพาะ path ในแอป · ปฏิเสธอักขระควบคุมและ \\ (เบราว์เซอร์อ่าน "/\\evil" เป็น "//evil")"""
+    if "\\" in nxt or any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in nxt):
+        return None
+    parts = urlsplit(nxt)
+    if parts.scheme or parts.netloc or nxt.startswith("//"):
+        return None
+    return nxt if nxt.startswith(request.script_root + "/") else None
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    _list_gate()
+    if request.method == "POST":
+        _check_csrf()
+        username = request.form.get("username", "").strip()[:64]
+        by_user, by_ip = store.recent_failures(username, _client_ip(), LOGIN_WINDOW)
+        if by_user >= LOGIN_MAX_USER or by_ip >= LOGIN_MAX_IP:
+            flash(f"ใส่รหัสผิดหลายครั้งเกินไป ลองใหม่อีก {LOGIN_WINDOW} นาที")
+            return render_template("login.html"), 429
+        u = store.check_login(username, request.form.get("password", ""))
+        if u:
+            session.clear()
+            session.permanent = True
+            session["uid"] = u["id"]
+            g.user = u
+            _audit_log("login")
+            return redirect(_safe_next(request.args.get("next") or "") or url_for("list_index"))
+        store.log(username, "login_fail", ip=_client_ip())
+        flash("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    _list_gate()
+    _check_csrf()
+    if _load_user():
+        _audit_log("logout")
+    session.clear()
+    return redirect(url_for("index"))
+
+
+def _no_store(resp):
+    resp.headers["Cache-Control"] = "no-store"     # มีชื่อผู้ป่วย — ห้ามแคชที่ proxy/เบราว์เซอร์
+    return resp
+
+
+@app.route("/list")
+@login_required
+def list_index():
+    d1, d2, fy = resolve_range(request.args)
+    return render_template("list_index.html", keys=listing.KEYS, fy=fy, fy_list=fy_options(n=8), d1=d1, d2=d2)
+
+
+@app.route("/list/<key>")
+@login_required
+def list_page(key):
+    d1, d2, fy = resolve_range(request.args)
+    cfg = load_config()
+    data = _data(d1, d2, cfg)
+    ans = listing.members(key, data, cfg)
+    if ans is None:
+        abort(404)
+    try:
+        names = queries.case_names(ans)
+    except Exception:                                            # noqa: BLE001 — ไม่มีชื่อก็ยังแสดง HN/AN ได้
+        app.logger.exception("case_names failed")
+        names = {}
+    head, rows = listing.table(ans, data, names)
+    _audit_log("view_list", f"k={key} d={d1}..{d2} n={len(rows)}")
+    return _no_store(app.make_response(render_template("list.html", key=key, title=listing.KEYS[key], head=head,
+                                                       rows=rows, d1=d1, d2=d2, fy=fy)))
+
+
+# ---------------------------------------------------------------- ส่งออกหน้าแดชบอร์ด (ไม่มีข้อมูลรายคน)
+
+MIME = {"png": "image/png", "jpg": "image/jpeg", "pdf": "application/pdf"}
+EXPORT_ENABLED = os.getenv("LR_EXPORT", "1") == "1"
+EXPORT_CACHE_TTL, EXPORT_WAIT = 300, 60
+_export_cache = TTLCache(maxsize=8)
+_render_lock = threading.Lock()
+
+
+@app.route("/export.<fmt>")
+def export(fmt):
+    """ส่งออกหน้าแดชบอร์ดเป็น PNG / JPG / PDF ด้วย chromium headless (เรียกหน้าเดิมด้วย ?print=1 — ไม่มีแถบเตือน)"""
+    if fmt not in MIME or not EXPORT_ENABLED:
+        return {"error": "รองรับเฉพาะ png, jpg, pdf" if EXPORT_ENABLED else "ปิดการส่งออกไฟล์"}, 404
+    d1, d2, fy = resolve_range(request.args)
+    qs = urllib.parse.urlencode({"fy": fy, "print": "1"} if fy else {"d1": d1.isoformat(), "d2": d2.isoformat(), "print": "1"})
+    url = f"http://127.0.0.1:{os.getenv('PORT', '5400')}/?{qs}"
+    name = f"lr_{fy}.{fmt}" if fy else f"lr_{d1}_{d2}.{fmt}"
+    blob = _export_cache.get(name, EXPORT_CACHE_TTL)
+    if blob is not None:
+        return send_file(BytesIO(blob), mimetype=MIME[fmt], as_attachment=True, download_name=name)
+    if not _render_lock.acquire(timeout=EXPORT_WAIT):
+        return ({"error": "กำลังส่งออกไฟล์ของผู้ใช้อื่นอยู่ ลองใหม่ในอีกครู่"}, 503, {"Retry-After": "30"})
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, name)
+            render.render_to(fmt, url, out)
+            blob = open(out, "rb").read()
+        _export_cache.set(name, blob)
+        return send_file(BytesIO(blob), mimetype=MIME[fmt], as_attachment=True, download_name=name)
+    except Exception as e:                                       # noqa: BLE001
+        app.logger.exception("export failed")
+        return {"error": f"ส่งออกไม่สำเร็จ: {type(e).__name__}"}, 500
+    finally:
+        _render_lock.release()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}รายชื่อผู้คลอด{% endblock %}
+{% block body %}
+<form class="bar" method="get">
+  <label>ปีงบประมาณ
+    <select name="fy" onchange="this.form.submit()">
+      {% for y in fy_list %}<option value="{{ y }}" {{ 'selected' if y == fy }}>{{ y }}</option>{% endfor %}
+    </select></label>
+  <span class="range">{{ d1|thai_date }} – {{ d2|thai_date }}</span>
+</form>
+<article class="panel"><h3>รายชื่อเบื้องหลังตัวเลข</h3>
+  <p class="muted">มีข้อมูลระบุตัวผู้ป่วย — ทุกการเปิดดูถูกบันทึกไว้ (PDPA) · ห้ามส่งออกนอกเครือข่ายโรงพยาบาล</p>
+  <ul class="klist">
+    {% for k, label in keys.items() %}<li><a href="{{ url_for('list_page', key=k, fy=fy) if fy else url_for('list_page', key=k, d1=d1, d2=d2) }}">{{ label }}</a></li>{% endfor %}
+  </ul>
+</article>
+{% endblock %}

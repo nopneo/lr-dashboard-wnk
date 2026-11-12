@@ -165,18 +165,25 @@ def _mothers_with(data, prefixes):
     return sum(1 for an in mother_ans(data) if _has(data["dx_by_an"].get(an, ()), prefixes))
 
 
+def is_asphyxia(r, cfg):
+    """ทารกขาดออกซิเจน: Apgar 5 นาที < เกณฑ์ หรือ ICD ขาดออกซิเจน หรือมี labor_ba_id"""
+    icd = (r.get("infant_icd10") or "").replace(".", "").upper()
+    return ((r["apgar5"] is not None and r["apgar5"] < cfg.asphyxia_apgar5)
+            or _has([icd], cfg.asphyxia_icd10) or r["labor_ba_id"] is not None)
+
+
+def lbw_pool(data):
+    """ตัวหาร LBW: ทารกที่ไม่ตายและมีน้ำหนัก"""
+    return [r for r in data["infants"] if not r["dead"] and r["weight"] is not None]
+
+
 def quality_grid(data, cfg):
     """ตัวชี้วัดคุณภาพ: n = จำนวน, den = ตัวหาร (แม่ หรือ เด็ก)"""
     infants, mothers = data["infants"], len(mother_ans(data))
 
-    def asphyxia(r):
-        icd = (r.get("infant_icd10") or "").replace(".", "").upper()
-        return ((r["apgar5"] is not None and r["apgar5"] < cfg.asphyxia_apgar5)
-                or _has([icd], cfg.asphyxia_icd10) or r["labor_ba_id"] is not None)
-
-    alive = [r for r in infants if not r["dead"] and r["weight"] is not None]
+    alive = lbw_pool(data)
     items = [
-        ("asphyxia", "Birth asphyxia", sum(1 for r in infants if asphyxia(r)), len(infants)),
+        ("asphyxia", "Birth asphyxia", sum(1 for r in infants if is_asphyxia(r, cfg)), len(infants)),
         ("pph", "PPH", _mothers_with(data, cfg.dx_pph), mothers),
         ("preterm", "คลอดก่อนกำหนด", _mothers_with(data, cfg.dx_preterm), mothers),
         ("htn", "PIH / Pre-eclampsia", _mothers_with(data, cfg.dx_htn), mothers),

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon %}
 {% block body %}
-{% if not print_mode %}
+{% if print_mode %}
+<div class="bar"><b>{% if fy %}ปีงบประมาณ {{ fy }} · {% endif %}</b><span class="range">{{ d.d1|thai_date }} – {{ d.d2|thai_date }}</span></div>
+{% else %}
 <form class="bar" method="get">
   <label>ปีงบประมาณ
     <select name="fy" onchange="this.form.submit()">

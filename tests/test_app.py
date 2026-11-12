@@ -115,3 +115,9 @@ def test_security_headers_present(client):
 def test_donut_explains_that_total_includes_referred(client, loaded):
     html = client.get("/").get_data(as_text=True)
     assert "รวมส่งต่อ" in html          # ตัวเลขกลางวงรวมผู้ส่งต่อที่ไม่ได้คลอดที่ รพ. — ต้องบอกให้ชัด
+
+
+def test_print_mode_states_the_period_since_toolbar_is_hidden(client, loaded):
+    html = client.get("/?fy=2569&print=1").get_data(as_text=True)
+    assert "ปีงบประมาณ 2569" in html and "1 ตุลาคม 2568" in html and "30 กันยายน 2569" in html
+    assert "<select" not in html

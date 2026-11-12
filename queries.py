@@ -175,3 +175,19 @@ def recent_counts(today, cfg):
                     f"and {NOT_ABORT_FLAG} and {DELIVERED}",
                     {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})
     return {"days7": (_i(rows[0]["n"]) or 0) if rows else 0}
+
+
+CASE_NAMES = """
+select i.an, i.hn, concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) name
+  from ipt i left join patient pt on pt.hn = i.hn
+ where i.an in %(ans)s
+"""
+
+
+def case_names(ans):
+    """{an: {hn, name}} — ข้อมูลระบุตัวผู้ป่วย: ใช้เฉพาะหน้ารายชื่อหลัง login เท่านั้น"""
+    ans, out = list(ans), {}
+    for i in range(0, len(ans), 500):
+        for r in db.fetch(CASE_NAMES, {"ans": tuple(ans[i:i + 500])}):
+            out[r["an"]] = {"hn": r.get("hn") or "", "name": (r.get("name") or "").strip()}
+    return out
