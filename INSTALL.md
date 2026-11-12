@@ -33,7 +33,7 @@
 ## 1. สิ่งที่ต้องมี
 
 - เครื่องที่ต่อถึงฐานข้อมูล HOSxP ได้ (แนะนำ Slave/Replica)
-- Python 3.10 ขึ้นไป · Chrome/Edge/Chromium ถ้าจะใช้ปุ่มส่งออก JPG/PDF
+- Python 3.9 ขึ้นไป · Chrome/Edge/Chromium ถ้าจะใช้ปุ่มส่งออก JPG/PDF
 - บัญชีฐานข้อมูล **SELECT อย่างเดียว** (แอปตั้ง session เป็น READ ONLY ให้อีกชั้น)
 - งานห้องคลอดบันทึกผ่านระบบ IPD/ห้องคลอดของ HOSxP (`ipt_pregnancy`, `ipt_labour`, `ipt_labour_infant`)
 

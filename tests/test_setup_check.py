@@ -113,3 +113,12 @@ def test_main_exit_code_is_0_with_only_warnings(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["setup_check.py", "--no-audit"])
     monkeypatch.setattr(setup_check, "run", lambda **kw: [("ok", "a", "x"), ("warn", "b", "y")])
     assert setup_check.main() == 0
+
+
+@pytest.mark.parametrize("version,expected", [((3, 9, 25), "ok"), ((3, 8, 18), "bad"), ((3, 13, 6), "ok")])
+def test_python_minimum_is_3_9(monkeypatch, version, expected):
+    # เซิร์ฟเวอร์ production (AlmaLinux 9) ใช้ Python 3.9 และแอปทำงานได้ — ขั้นต่ำคือ 3.9 ไม่ใช่ 3.10
+    import platform
+    monkeypatch.setattr(sys, "version_info", version + ("final", 0))
+    monkeypatch.setattr(platform, "python_version", lambda: ".".join(map(str, version)))
+    assert setup_check._env_checks()[0][0] == expected

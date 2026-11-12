@@ -73,7 +73,7 @@ def _list_check():
 def _env_checks():
     out = []
     v = sys.version_info
-    out.append(("ok" if v >= (3, 10) else "bad", f"Python {platform.python_version()}", "ต้อง 3.10 ขึ้นไป"))
+    out.append(("ok" if v >= (3, 9) else "bad", f"Python {platform.python_version()}", "ต้อง 3.9 ขึ้นไป"))
     need = [("flask", "Flask"), ("pymysql", "PyMySQL"), ("dotenv", "python-dotenv"), ("PIL", "Pillow"),
             ("waitress" if os.name == "nt" else "gunicorn", "waitress" if os.name == "nt" else "gunicorn")]
     missing = []
