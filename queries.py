@@ -153,7 +153,7 @@ def lab_results(d1, d2, cfg):
 
 # ---------------------------------------------------------------- ส่งต่อ + ช่วงล่าสุด
 
-LR_REFERS = f"""
+REFERS_SQL = f"""
 select date_format(r.refer_date, '%%Y-%%m') ym, count(*) n
   from referout r
   join ipt_pregnancy p on p.an = r.vn
@@ -165,7 +165,7 @@ select date_format(r.refer_date, '%%Y-%%m') ym, count(*) n
 def lr_refers(d1, d2, cfg):
     """ส่งต่อ = มารดาที่รับไว้ห้องคลอด (AN อยู่ใน ipt_pregnancy) แล้วส่งต่อโดยยังไม่ได้คลอดที่ รพ. — นับตามเดือนที่ส่งต่อ
     (referout.vn = AN สำหรับผู้ป่วยใน · ทารกส่งต่อ (Dx Z38/P..) อยู่ใต้ AN ของทารก จึงไม่ปนมา)"""
-    rows = db.fetch(LR_REFERS, {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})
+    rows = db.fetch(REFERS_SQL, {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})
     return [{"ym": r["ym"], "n": _i(r["n"]) or 0} for r in rows]
 
 
