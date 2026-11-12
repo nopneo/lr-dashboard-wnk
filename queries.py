@@ -41,10 +41,21 @@ def _in(codes):
 
 # ---------------------------------------------------------------- การคลอด (ระดับแม่ = 1 AN)
 
-DELIVERIES = """
+#: หลักฐานว่า AN ใน ipt_pregnancy เป็นการคลอดจริง: มีทารกใน ipt_labour_infant หรือมี Dx คลอด (cfg.delivery_icd10)
+#: — ฐานจริงมีแถวที่ไม่ใช่การคลอด (รอคลอด/ไม่คลอด) ปนอยู่ และ ipt_pregnancy.abort เป็น NULL ทั้งตาราง
+_INFANT_EVIDENCE = ("exists (select 1 from ipt_labour il0 join ipt_labour_infant i0 on i0.ipt_labour_id = il0.ipt_labour_id "
+                    "where il0.an = p.an)")
+_DX_EVIDENCE = ("exists (select 1 from iptdiag d0 where d0.an = p.an "
+                "and left(replace(d0.icd10, '.', ''), 3) in %(deliv)s)")
+DELIVERED = f"({_INFANT_EVIDENCE} or {_DX_EVIDENCE})"
+NOT_DELIVERED = f"not {_INFANT_EVIDENCE} and not {_DX_EVIDENCE}"
+NOT_ABORT_FLAG = "not (coalesce(p.abort, 'N') = 'Y' or coalesce(p.pregnancy_abort_type_id, 0) > 0)"
+
+#: is_abort = 1 หมายถึง "ไม่นับเป็นการคลอด" (ธงแท้ง หรือไม่มีหลักฐานการคลอด) — ชื่อเดิมคงไว้ให้ metrics/tests ใช้ร่วมกัน
+DELIVERIES = f"""
 select p.an, p.labor_date, date_format(p.labor_date, '%%Y-%%m') ym,
        if(coalesce(p.twin_child_count, 0) >= 2, 1, 0) twin,
-       if(coalesce(p.abort, 'N') = 'Y' or coalesce(p.pregnancy_abort_type_id, 0) > 0, 1, 0) is_abort
+       if({NOT_ABORT_FLAG} and {DELIVERED}, 0, 1) is_abort
   from ipt_pregnancy p
  where p.labor_date between %(d1)s and %(d2)s
 """
@@ -53,7 +64,7 @@ select p.an, p.labor_date, date_format(p.labor_date, '%%Y-%%m') ym,
 def deliveries(d1, d2, cfg):
     return [{"an": r["an"], "labor_date": _d(r["labor_date"]), "ym": r["ym"],
              "twin": _i(r.get("twin")) or 0, "is_abort": _i(r.get("is_abort")) or 0}
-            for r in db.fetch(DELIVERIES, {"d1": d1, "d2": d2})]
+            for r in db.fetch(DELIVERIES, {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})]
 
 
 DELIVERY_DX = """
@@ -125,31 +136,42 @@ select il.an,
   join ipt_pregnancy p on p.an = il.an
  where p.labor_date between %(d1)s and %(d2)s
    and (l.lab_id in %(syph)s or l.lab_id in %(hiv)s or l.lab_id in %(hbv)s)
+union all
+select p.an, 'amph' lab_key, o.lab_order_result result
+  from ipt_pregnancy p
+  join lab_head h on h.vn = p.an
+  join lab_order o on o.lab_order_number = h.lab_order_number
+ where p.labor_date between %(d1)s and %(d2)s and o.lab_items_code in %(amph)s
 """
 
 
 def lab_results(d1, d2, cfg):
-    args = {"d1": d1, "d2": d2, "syph": _in(cfg.syphilis_labs), "hiv": _in(cfg.hiv_labs), "hbv": _in(cfg.hbv_labs)}
+    args = {"d1": d1, "d2": d2, "syph": _in(cfg.syphilis_labs), "hiv": _in(cfg.hiv_labs), "hbv": _in(cfg.hbv_labs),
+            "amph": _in(cfg.amph_labs)}
     return [{"an": r["an"], "lab_key": r["lab_key"], "result": r.get("result")} for r in db.fetch(LAB_RESULTS, args)]
 
 
 # ---------------------------------------------------------------- ส่งต่อ + ช่วงล่าสุด
 
+LR_REFERS = f"""
+select date_format(r.refer_date, '%%Y-%%m') ym, count(*) n
+  from referout r
+  join ipt_pregnancy p on p.an = r.vn
+ where r.refer_date between %(d1)s and %(d2)s and {NOT_DELIVERED}
+ group by ym
+"""
+
+
 def lr_refers(d1, d2, cfg):
-    """ส่งต่อรายเดือน — ตอนนี้นับ referout ที่ Dx หลัก (pdx) ขึ้นต้นด้วย cfg.refer_dx_prefix · นิยามละเอียดยืนยันใน Task 6"""
-    args = {"d1": d1, "d2": d2}
-    conds = []
-    for i, p in enumerate(cfg.refer_dx_prefix or ("\x00none",)):
-        args[f"rp{i}"] = p + "%"
-        conds.append(f"r.pdx like %(rp{i})s")
-    sql = ("select date_format(r.refer_date, '%%Y-%%m') ym, count(*) n from referout r "
-           "where r.refer_date between %(d1)s and %(d2)s and (" + " or ".join(conds) + ") group by ym")
-    return [{"ym": r["ym"], "n": _i(r["n"]) or 0} for r in db.fetch(sql, args)]
+    """ส่งต่อ = มารดาที่รับไว้ห้องคลอด (AN อยู่ใน ipt_pregnancy) แล้วส่งต่อโดยยังไม่ได้คลอดที่ รพ. — นับตามเดือนที่ส่งต่อ
+    (referout.vn = AN สำหรับผู้ป่วยใน · ทารกส่งต่อ (Dx Z38/P..) อยู่ใต้ AN ของทารก จึงไม่ปนมา)"""
+    rows = db.fetch(LR_REFERS, {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})
+    return [{"ym": r["ym"], "n": _i(r["n"]) or 0} for r in rows]
 
 
 def recent_counts(today, cfg):
     d1, d2 = today - timedelta(days=6), today
-    rows = db.fetch("select count(*) n from ipt_pregnancy p where p.labor_date between %(d1)s and %(d2)s "
-                    "and not (coalesce(p.abort, 'N') = 'Y' or coalesce(p.pregnancy_abort_type_id, 0) > 0)",
-                    {"d1": d1, "d2": d2})
-    return {"days7": _i(rows[0]["n"]) or 0 if rows else 0}
+    rows = db.fetch(f"select count(*) n from ipt_pregnancy p where p.labor_date between %(d1)s and %(d2)s "
+                    f"and {NOT_ABORT_FLAG} and {DELIVERED}",
+                    {"d1": d1, "d2": d2, "deliv": _in(cfg.delivery_icd10)})
+    return {"days7": (_i(rows[0]["n"]) or 0) if rows else 0}

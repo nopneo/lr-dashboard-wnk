@@ -24,3 +24,12 @@
   → `classify_result` ต้องทนต่อรูปแบบเหล่านี้ (Task 3)
 - `referout.pdx` ขึ้นต้น O = 59–84 ราย/ปี — มากกว่าจำนวนคลอดจึงรวมการส่งต่อ ANC/OPD ด้วย (Task 6 ต้องจำกัดเฉพาะส่งต่อจาก LR)
 - Amphetamine: ไม่มีใน `ipt_labour_lab` → ต้องหาจาก `lab_order` (Task 6) จนกว่าจะพบ แสดง "ไม่มีข้อมูล"
+
+## ผลยืนยันรอบ Task 6 (2026-11-12)
+
+- แถวใน `ipt_pregnancy` ที่ไม่ใช่การคลอด (102 → 92 ในปีงบ 2565) ไม่มีทารก ไม่มี Dx O80–O84/Z37 → กรองด้วย "หลักฐานการคลอด" (`queries.DELIVERED`) ตรงกับ `ipt_labour_infant` ครบ 5 ปี
+- `ward` 02 = ตึกห้องคลอด (191 admission/ปี รวมหลังคลอด/ทารก/รอคลอด) — **ไม่ใช้**นับคลอด เพราะปนผู้ป่วยหลายประเภท
+- `referout.vn` = AN สำหรับผู้ป่วยใน · refer ที่ผูกกับ AN ของหอห้องคลอด 41 ราย/ปี แต่ 18 รายเป็นทารก (pdx Z38/P..) · refer ของมารดา (AN ใน `ipt_pregnancy`) ที่ยังไม่คลอด = 18–21 ราย/ปี
+- `dchstts` master: 01 Complete Recovery · 02 Improved · 03 Not Improved · 04 Normal Delivery · 05 Un-Delivery · 06/07 Normal Child Discharged · 08 Dead Still Birth · 09 Dead
+- Amphetamine: `lab_items_code` 139 Methamphetamine · 590 (Confirm) · 2104 (ฟรี) · 1992 Urine Amphetamine · `lab_head.vn = AN` ใช้ได้ (ปี 2569: 5 ราย ลบ 4 บวก 1)
+- ไม่พบแหล่งสุรา/บุหรี่ของมารดาในฐาน

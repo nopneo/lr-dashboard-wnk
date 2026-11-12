@@ -54,3 +54,10 @@ def test_lab_defaults_match_labour_lab_master():
     # labour_lab ของ รพ.วังน้ำเขียว: 1 = VDRL, 2 = Anti HIV, 3 = HBsAg (docs/schema-notes.md)
     c = load_config({})
     assert (c.syphilis_labs, c.hiv_labs, c.hbv_labs) == (("1",), ("2",), ("3",))
+
+
+def test_delivery_icd10_and_amph_defaults():
+    c = load_config({})
+    assert c.delivery_icd10 == ("O80", "O81", "O82", "O83", "O84", "Z37")
+    assert c.amph_labs == ("139", "590", "2104", "1992")      # lab_items ของ รพ.วังน้ำเขียว (ตรวจใน /check)
+    assert load_config({"LR_DELIVERY_ICD10": "o80,z37.0"}).delivery_icd10 == ("O80", "Z370")

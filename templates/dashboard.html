@@ -36,7 +36,8 @@
   <article class="panel"><h3>จำนวนการคลอดรายเดือน</h3>
     <div class="key"><i style="background:#1e88e5"></i>คลอดปกติ <i style="background:#ec6b9a"></i>มีภาวะแทรกซ้อน/หัตถการ <i style="background:#f5a623"></i>ส่งต่อ (ไม่นับเป็นคลอดที่ รพ.)</div>
     {{ d.bar_svg }}</article>
-  <article class="panel"><h3>สัดส่วนประเภทการคลอด</h3>{{ d.donut_svg }}</article>
+  <article class="panel"><h3>สัดส่วนผู้มาคลอดที่ห้องคลอด</h3>{{ d.donut_svg }}
+    <p class="muted">ตัวเลขกลางวง = คลอดที่ รพ. + ส่งต่อ (รวมส่งต่อ) · การ์ด “การคลอดทั้งหมด” นับเฉพาะที่คลอดที่ รพ.</p></article>
 </section>
 
 <section class="two q">

@@ -74,9 +74,9 @@ def test_deliveries_typed_rows_and_abort_flag(calls):
 
 
 def test_lab_query_never_sends_empty_in_list(calls):
-    queries.lab_results(D1, D2, Config(syphilis_labs=(), hiv_labs=(), hbv_labs=()))
+    queries.lab_results(D1, D2, Config(syphilis_labs=(), hiv_labs=(), hbv_labs=(), amph_labs=()))
     args = calls[0][1]
-    for k in ("syph", "hiv", "hbv"):
+    for k in ("syph", "hiv", "hbv", "amph"):
         assert len(args[k]) >= 1, f"{k}: in () ทำให้ SQL ผิด"
 
 
@@ -85,10 +85,26 @@ def test_lab_results_rows_carry_lab_key(calls):
     assert queries.lab_results(D1, D2, CFG) == [{"an": "A1", "lab_key": "hiv", "result": "Non-reactive"}]
 
 
-def test_refers_uses_prefix_params(calls):
-    queries.lr_refers(D1, D2, Config(refer_dx_prefix=("O", "Z3")))
-    args = calls[0][1]
-    assert "O%" in args.values() and "Z3%" in args.values()
+def test_refers_only_mothers_who_did_not_deliver_here(calls):
+    calls.fake.rows = [{"ym": "2026-10", "n": "2"}]
+    assert queries.lr_refers(D1, D2, CFG) == [{"ym": "2026-10", "n": 2}]
+    sql, args = calls[0]
+    assert "from referout" in sql and "ipt_pregnancy" in sql
+    assert "not exists" in sql.lower()                      # ตัดแม่ที่คลอดที่ รพ. แล้วออก
+    assert args["deliv"] == CFG.delivery_icd10
+
+
+def test_deliveries_require_delivery_evidence(calls):
+    queries.deliveries(D1, D2, CFG)
+    sql, args = calls[0]
+    assert "ipt_labour_infant" in sql and args["deliv"] == CFG.delivery_icd10
+
+
+def test_lab_results_include_amphetamine_from_lab_order(calls):
+    queries.lab_results(D1, D2, Config(amph_labs=("139", "590")))
+    sql, args = calls[0]
+    assert "lab_head" in sql and "lab_order" in sql
+    assert args["amph"] == ("139", "590")
 
 
 def test_recent_counts_window(calls):

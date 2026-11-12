@@ -60,12 +60,13 @@ class Config:
     dx_prolonged: tuple = ("O63",)
     dx_fetal_distress: tuple = ("O68",)
     dx_prom: tuple = ("O42",)
-    # lab ตอนคลอด = labour_lab.lab_id ใน ipt_labour_lab (ดู docs/schema-notes.md) · amph ยังไม่มีแหล่ง
+    # lab ตอนคลอด: syphilis/hiv/hbv = labour_lab.lab_id ใน ipt_labour_lab · amph = lab_items_code ใน lab_order (ดู docs/schema-notes.md)
     syphilis_labs: tuple = ("1",)   # labour_lab.lab_id: 1 = VDRL
     hiv_labs: tuple = ("2",)        # 2 = Anti HIV
     hbv_labs: tuple = ("3",)        # 3 = HBsAg
-    amph_labs: tuple = ()
-    refer_dx_prefix: tuple = ("O",)
+    amph_labs: tuple = ("139", "590", "2104", "1992")   # lab_items: Methamphetamine / Confirm / ฟรี / Urine Amphetamine
+    # หลักฐานว่าเป็น "การคลอด" (ICD-10 3 ตัวแรก) — แถวใน ipt_pregnancy ที่ไม่มีทารกและไม่มี Dx เหล่านี้ไม่นับเป็นการคลอด
+    delivery_icd10: tuple = ("O80", "O81", "O82", "O83", "O84", "Z37")
 
 
 def load_config(env=os.environ):
@@ -97,7 +98,7 @@ def load_config(env=os.environ):
         hiv_labs=_list(g("LR_LAB_HIV")) or d.hiv_labs,
         hbv_labs=_list(g("LR_LAB_HBV")) or d.hbv_labs,
         amph_labs=_list(g("LR_LAB_AMPH")) or d.amph_labs,
-        refer_dx_prefix=_dx(g("LR_REFER_DX_PREFIX")) or d.refer_dx_prefix,
+        delivery_icd10=_dx(g("LR_DELIVERY_ICD10")) or d.delivery_icd10,
     )
 
 

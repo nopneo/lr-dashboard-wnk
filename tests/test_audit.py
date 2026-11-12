@@ -45,7 +45,7 @@ def test_audit_items_have_env_and_app_uses(monkeypatch):
     items = audit.audit(D1, D2, CFG)
     assert len(items) >= 8
     for it in items:
-        assert it["env"].startswith("LR_"), it["key"]
+        assert it["env"].startswith("LR_") or (it["key"] == "alcohol_smoke" and it["env"] == "—"), it["key"]
         assert it["app_uses"], it["key"]
         assert it["status"] in ("ok", "warn", "bad")
 
@@ -75,3 +75,32 @@ def test_completeness_counts_orphans_and_missing_apgar():
     assert c["mothers_without_infant"]["n"] == 1
     assert c["infants_without_mother"]["n"] == 1
     assert c["apgar1_missing"]["n"] == 1 and c["apgar1_missing"]["den"] == 2
+
+
+def test_reconcile_pregnancy_source_uses_delivery_evidence(monkeypatch):
+    seen = []
+    monkeypatch.setattr(db, "fetch", lambda sql, args=None: seen.append((sql, args)) or [{"n": 1}])
+    audit.reconcile(D1, D2, CFG)
+    sql, args = next((s, a) for s, a in seen if "from ipt_pregnancy" in s)
+    assert args["deliv"] == CFG.delivery_icd10 and "ipt_labour_infant" in sql
+
+
+def test_dead_dchstts_ok_when_master_confirms_codes_even_if_unseen(monkeypatch):
+    route(monkeypatch, {"from ipt_labour_infant": [{"code": "05", "n": 79}],
+                        "from dchstts": [{"code": "08", "name": "Dead Still Birth"}, {"code": "09", "name": "Dead"}]})
+    items = {i["key"]: i for i in audit.audit(D1, D2, CFG)}
+    assert items["dead_dchstts"]["status"] == "ok"
+
+
+def test_stillbirth_item_groups_icd_at_four_chars(monkeypatch):
+    seen = []
+    monkeypatch.setattr(db, "fetch", lambda sql, args=None: seen.append(sql) or [])
+    audit.audit(D1, D2, CFG)
+    still = [s for s in seen if "iptdiag" in s and "codes" in s and ", 4)" in s]
+    assert still, "stillbirth ต้องจัดกลุ่ม 4 ตัวอักษร (Z37.1 ≠ Z37.0)"
+
+
+def test_amph_item_lists_candidate_lab_items(monkeypatch):
+    route(monkeypatch, {"from lab_items": [{"code": "139", "name": "Methamphetamine", "n": 0}]})
+    items = {i["key"]: i for i in audit.audit(D1, D2, CFG)}
+    assert items["amph"]["found"] and items["amph"]["env"] == "LR_LAB_AMPH"

@@ -110,3 +110,8 @@ def test_security_headers_present(client):
     r = client.get("/healthz")
     assert r.headers["X-Content-Type-Options"] == "nosniff"
     assert "default-src 'self'" in r.headers["Content-Security-Policy"]
+
+
+def test_donut_explains_that_total_includes_referred(client, loaded):
+    html = client.get("/").get_data(as_text=True)
+    assert "รวมส่งต่อ" in html          # ตัวเลขกลางวงรวมผู้ส่งต่อที่ไม่ได้คลอดที่ รพ. — ต้องบอกให้ชัด
