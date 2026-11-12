@@ -13,6 +13,8 @@ MONTHS = ["2026-10", "2026-11"]
     ("Non-reactive", "neg"), ("NON REACTIVE", "neg"), ("Non reactive", "neg"), ("NR", "neg"), ("�NR", "neg"),
     ("neg", "neg"), ("Neg", "neg"), ("Negative", "neg"), ("-ve", "neg"), ("ไม่พบ", "neg"),
     ("Reactive", "pos"), ("Positive", "pos"), ("pos", "pos"), ("+ve", "pos"), ("R", "pos"), ("พบ", "pos"),
+    ("์NR", "neg"), ("ืneg", "neg"), ("ื์NR", "neg"), ("ืำNR", "neg"),   # ตัวผันภาษาไทยนำหน้าจากแป้นพิมพ์
+    ("1:8", "pos"), ("1 : 16", "pos"),                                                        # titer VDRL = reactive
     ("", "unclear"), (None, "unclear"), ("Inconclusive", "unclear"), ("รอผล", "unclear"),
 ])
 def test_classify_result(text, expected):

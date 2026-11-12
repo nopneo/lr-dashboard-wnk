@@ -31,7 +31,7 @@ def pct(n, d):
 
 
 def _has(codes, prefixes):
-    return any(c.startswith(p) for c in codes for p in prefixes)
+    return any(c.startswith(p) for c in codes if c for p in prefixes)
 
 
 def mother_ans(data):
@@ -83,15 +83,18 @@ def twin_ans(data):
 
 
 _NEG = re.compile(r"(non[\s\-_]*react|neg|nr\b|-\s*ve\b|ไม่พบ|ไม่ตรวจพบ)")
-_POS = re.compile(r"(react|pos|r\b|\+\s*ve\b|\+|พบ)")
+_POS = re.compile(r"(react|pos|r\b|\+\s*ve\b|\+|พบ|\d+\s*:\s*\d+)")      # titer เช่น 1:8 = reactive
+#: ตัวแรกของคำที่ถูกต้อง: a-z · 0-9 · พยัญชนะไทย · สระนำ เ แ โ ใ ไ · เลขไทย · + · -
+#: (ตัวผันภาษาไทยที่หลุดมาจากแป้นพิมพ์ เช่น "์NR" และอักขระขยะ tis-620 ถูกตัดทิ้ง)
+_LEAD_JUNK = re.compile(r"^[^a-z0-9ก-ฮเ-ไ๐-๙+\-]+")
 
 
 def classify_result(text):
     """ผลแล็บพิมพ์มือ → 'pos' | 'neg' | 'unclear' · ตรวจกลุ่มลบก่อน เพราะ "Non-reactive" มีคำว่า reactive อยู่ข้างใน
-    ตัวอักษรขยะนำหน้า (ผลจาก tis-620) ถูกตัดทิ้งก่อนจับคู่ · ไม่ชัดไม่นับเป็นลบ"""
+    ตัวอักษรขยะ/ตัวผันนำหน้าถูกตัดทิ้งก่อนจับคู่ · ไม่ชัดไม่นับเป็นลบ"""
     if text is None:
         return "unclear"
-    t = re.sub(r"^[^a-z0-9ก-๙+\-]+", "", str(text).strip().lower())
+    t = _LEAD_JUNK.sub("", str(text).strip().lower())
     if not t:
         return "unclear"
     if _NEG.match(t):

@@ -90,3 +90,10 @@ def test_unsourced_rows_are_nodata_not_zero():
     rows = {r["key"]: r for r in metrics.kpi_rows(data(), CFG)}
     assert rows["alcohol_smoke"]["value"] is None and rows["alcohol_smoke"]["status"] == "nodata"
     assert rows["amph"]["status"] == "nodata"
+
+
+def test_null_dx_and_ops_codes_do_not_crash():
+    # ข้อมูลจริง: iptdiag.icd10 / iptoprt.icd9 บางแถวเป็น NULL หรือว่าง
+    d = data([delivery("a")], dx={"a": [None, "", "O800"]}, ops={"a": [None, ""]})
+    rows = metrics.kpi_rows(d, CFG)
+    assert val(rows, "mothers") == 1 and val(rows, "normal") == 1

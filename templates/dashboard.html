@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block body %}
+{% if not print_mode %}
+<form class="bar" method="get">
+  <label>ปีงบประมาณ
+    <select name="fy" onchange="this.form.submit()">
+      {% for y in fy_list %}<option value="{{ y }}" {{ 'selected' if y == fy }}>{{ y }}</option>{% endfor %}
+    </select></label>
+  <span class="range">{{ d.d1|thai_date }} – {{ d.d2|thai_date }}</span>
+</form>
+{% if not d.audited %}
+{# ซ่อนเมื่อตั้ง LR_DATA_AUDITED=1 หรือกด "ยืนยันว่าตรวจแล้ว" ที่หน้า /check · ไม่แสดงในโหมดพิมพ์ (?print=1) ที่ใช้ส่งออก #}
+<div class="audit-bar" data-audit-key="lr-audited:{{ hospital }}"><div>{{ icon('alert', 18) }}
+  <span><b>ตัวเลขยังไม่ได้ตรวจกับข้อมูลของโรงพยาบาลนี้</b> — รหัสใน HOSxP (Dx, หัตถการ, สถานะทารก, แล็บ) ของแต่ละโรงพยาบาลไม่เหมือนกัน
+  {% if check_allowed %}เปิด <a href="{{ url_for('check_page') }}">ตรวจข้อมูลก่อนใช้</a> ก่อนนำตัวเลขไปใช้
+  {% else %}ให้ผู้ดูแลระบบเปิดหน้าตรวจข้อมูลจากเครื่องในโรงพยาบาลก่อนนำตัวเลขไปใช้{% endif %}</span>
+</div></div>
+<script>(function(){var b=document.currentScript.previousElementSibling;try{if(localStorage.getItem(b.dataset.auditKey))b.remove();}catch(e){}})();</script>
+{% endif %}
+{% endif %}
+{% if d.errors %}<div class="err-bar">อ่านข้อมูลบางส่วนไม่ได้: {{ d.errors|join(', ') }} — ตัวเลขที่เกี่ยวข้องอาจต่ำกว่าความจริง</div>{% endif %}
+
+<section class="cards">
+  {% for c in d.cards %}
+  <article class="card c-{{ c.key }}">
+    <div class="ci">{{ icon({'mothers':'heart','normal':'check','abnormal':'alert','referred':'send'}[c.key], 24) }}</div>
+    <h2>{{ c.label }}</h2>
+    <p class="big">{{ c.value|num }}<small> ราย</small></p>
+    <p class="delta">{% if c.delta is not none %}{{ '%+.1f'|format(c.delta) }}% เทียบปีงบก่อน{% else %}&nbsp;{% endif %}</p>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="two">
+  <article class="panel"><h3>จำนวนการคลอดรายเดือน</h3>
+    <div class="key"><i style="background:#1e88e5"></i>คลอดปกติ <i style="background:#ec6b9a"></i>มีภาวะแทรกซ้อน/หัตถการ <i style="background:#f5a623"></i>ส่งต่อ (ไม่นับเป็นคลอดที่ รพ.)</div>
+    {{ d.bar_svg }}</article>
+  <article class="panel"><h3>สัดส่วนประเภทการคลอด</h3>{{ d.donut_svg }}</article>
+</section>
+
+<section class="two q">
+  <article class="panel"><h3>ตัวชี้วัดคุณภาพงานห้องคลอด</h3>
+    <div class="qgrid">
+      {% for g in d.quality %}<div class="qt"><span>{{ g.label }}</span><b>{{ g.n|num }}<small> ราย</small></b><em>จาก {{ g.den|num }}</em></div>{% endfor %}
+    </div></article>
+  <article class="panel"><h3>ช่วง 7 วันล่าสุด</h3>
+    <p class="big blue">{{ d.recent.days7|num }}<small> ราย คลอด</small></p>
+    <p class="muted">นับจำนวนเท่านั้น — รายชื่อดูได้หลังเข้าสู่ระบบ</p></article>
+</section>
+{% endblock %}

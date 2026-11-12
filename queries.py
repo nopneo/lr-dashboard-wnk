@@ -65,7 +65,7 @@ select distinct d.an, replace(upper(d.icd10), '.', '') icd10
 
 
 def delivery_dx(d1, d2, cfg):
-    return [{"an": r["an"], "icd10": r["icd10"]} for r in db.fetch(DELIVERY_DX, {"d1": d1, "d2": d2})]
+    return [{"an": r["an"], "icd10": r["icd10"]} for r in db.fetch(DELIVERY_DX, {"d1": d1, "d2": d2}) if r.get("icd10")]
 
 
 DELIVERY_OPS = """
@@ -77,7 +77,7 @@ select distinct o.an, replace(o.icd9, '.', '') icd9
 
 
 def delivery_ops(d1, d2, cfg):
-    return [{"an": r["an"], "icd9": r["icd9"]} for r in db.fetch(DELIVERY_OPS, {"d1": d1, "d2": d2})]
+    return [{"an": r["an"], "icd9": r["icd9"]} for r in db.fetch(DELIVERY_OPS, {"d1": d1, "d2": d2}) if r.get("icd9")]
 
 
 # ---------------------------------------------------------------- ทารก

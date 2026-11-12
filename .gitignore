@@ -6,3 +6,4 @@ data/*.db
 out/
 dist/
 .pytest_cache/
+.claude/

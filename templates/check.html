@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}ตรวจข้อมูลก่อนใช้{% endblock %}
+{% block body %}
+<form class="bar" method="get">
+  <label>ช่วงที่ตรวจ
+    <select name="fy" onchange="this.form.submit()">
+      <option value="" {{ 'selected' if not fy }}>12 เดือนล่าสุด</option>
+      {% for y in fy_list %}<option value="{{ y }}" {{ 'selected' if y == fy }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select></label>
+  <span class="range">{{ d1|thai_date }} – {{ d2|thai_date }}</span>
+</form>
+<p class="lead">Data Audit — ทุกรหัสที่แอปสมมติไว้ เทียบกับที่พบในข้อมูลจริง (แสดงเฉพาะจำนวนนับ ไม่มีข้อมูลรายคน)</p>
+{% for it in items %}
+<article class="panel chk s-{{ it.status }}">
+  <h3><span class="chip">{{ {'ok':'ผ่าน','warn':'ตรวจ','bad':'ผิดพลาด'}[it.status] }}</span> {{ it.title }}</h3>
+  <p><b>แอปใช้:</b> {{ it.app_uses }}</p>
+  {% if it.found %}<table class="ft"><tr><th>พบในข้อมูล</th><th></th><th class="n">จำนวน</th></tr>
+    {% for f in it.found %}<tr><td>{{ f.code }}</td><td class="muted">{{ f.name }}</td><td class="n">{{ f.n|num }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="muted">ไม่พบรายการในช่วงนี้</p>{% endif %}
+  <p class="muted"><b>ตั้งค่าด้วย env:</b> <code>{{ it.env }}</code>{% if it.hint %} · {{ it.hint }}{% endif %}</p>
+</article>
+{% endfor %}
+<article class="panel chk"><h3>ความครบถ้วนของข้อมูล</h3>
+  <table class="ft">{% for c in comp %}<tr><td>{{ c.title }}</td><td class="n">{{ c.n|num }} / {{ c.den|num }}</td></tr>{% endfor %}</table></article>
+<article class="panel chk"><h3>ยืนยันว่าตรวจแล้ว</h3>
+  <p>เมื่อตรวจทุกรายการและทดลองเทียบกับรายงานเดิม 1–2 สัปดาห์แล้ว ให้ตั้ง <code>LR_DATA_AUDITED=1</code> ใน .env (ถาวร ทุกเครื่อง)
+  หรือกดปุ่มนี้เพื่อซ่อนแถบเตือนเฉพาะเบราว์เซอร์เครื่องนี้</p>
+  <div><button id="ok" type="button">ยืนยันว่าตรวจแล้ว (เครื่องนี้)</button> <span id="done" class="muted"></span></div></article>
+<script>
+document.getElementById('ok').onclick=function(){try{localStorage.setItem('lr-audited:{{ hospital|e }}','1');document.getElementById('done').textContent='บันทึกแล้ว';}catch(e){document.getElementById('done').textContent='บันทึกไม่ได้';}};
+</script>
+{% endblock %}

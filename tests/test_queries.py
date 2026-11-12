@@ -96,3 +96,10 @@ def test_recent_counts_window(calls):
     assert queries.recent_counts(date(2026, 11, 12), CFG) == {"days7": 4}
     args = calls[0][1]
     assert args["d1"] == date(2026, 11, 6) and args["d2"] == date(2026, 11, 12)
+
+
+def test_null_or_blank_codes_dropped(calls):
+    calls.fake.rows = [{"an": "A1", "icd10": None}, {"an": "A1", "icd10": ""}, {"an": "A1", "icd10": "O800"}]
+    assert queries.delivery_dx(D1, D2, CFG) == [{"an": "A1", "icd10": "O800"}]
+    calls.fake.rows = [{"an": "A1", "icd9": None}, {"an": "A1", "icd9": "7270"}]
+    assert queries.delivery_ops(D1, D2, CFG) == [{"an": "A1", "icd9": "7270"}]

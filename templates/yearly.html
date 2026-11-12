@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}ผลงานรายปี{% endblock %}
+{% block body %}
+<article class="panel wide"><h3>สถิติบริการ — ปีงบประมาณ {{ t.years|join(' · ') }}</h3>
+  <table class="yt">
+    <thead><tr><th>สถิติบริการ</th>{% for y in t.years %}<th>ปี {{ y }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in t.rows %}
+      <tr class="{{ 'sub' if r.key in ('normal','abnormal','cs','forceps','vacuum','breech') }}">
+        <td>{{ r.label }}</td>
+        {% for v in r['values'] %}<td class="n">{% if v is none %}<span class="nodata">ไม่มีข้อมูล</span>{% else %}{{ v|num }}{% endif %}</td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">แถวที่ขึ้น “ไม่มีข้อมูล” = ฐาน HOSxP ยังไม่มีแหล่งข้อมูลหรือยังไม่ได้ยืนยัน (ไม่ใช่ 0) — ดูรายละเอียดที่หน้าตรวจข้อมูล</p>
+</article>
+{% endblock %}

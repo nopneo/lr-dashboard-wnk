@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ระบบงานห้องคลอด (LR){% endblock %} · {{ hospital }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ css_v }}">
+</head>
+<body class="{{ 'print' if print_mode else '' }}">
+<header class="top">
+  <img class="logo" src="{{ logo_url }}" alt="">
+  <div class="brand"><b>{{ hospital }}</b><span>กลุ่มงานการพยาบาล</span></div>
+  <div class="title"><h1>ระบบงานห้องคลอด (LR)</h1></div>
+</header>
+{% if not print_mode %}
+<nav class="tabs">
+  <a href="{{ url_for('index') }}" class="{{ 'on' if request.endpoint == 'index' }}">ภาพรวม LR</a>
+  <a href="{{ url_for('yearly') }}" class="{{ 'on' if request.endpoint == 'yearly' }}">ผลงานรายปี</a>
+  {% if check_allowed %}<a href="{{ url_for('check_page') }}" class="{{ 'on' if request.endpoint == 'check_page' }}">ตรวจข้อมูลก่อนใช้</a>{% endif %}
+</nav>
+{% endif %}
+<main>{% block body %}{% endblock %}</main>
+<footer>LR Dashboard v{{ version }} · ผู้พัฒนา {{ dev_contact }} · ข้อมูลอ่านอย่างเดียวจาก HOSxP · แสดงเฉพาะจำนวนนับ</footer>
+</body>
+</html>

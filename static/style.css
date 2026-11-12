@@ -1,0 +1,89 @@
+/* LR Dashboard — โทนน้ำเงิน–ฟ้า · ฟอนต์ Sarabun (เนื้อหา) / Kanit (หัวข้อ) โหลดจากเครื่องเอง */
+@font-face { font-family: "Sarabun"; font-weight: 400; src: url("fonts/Sarabun-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Sarabun"; font-weight: 600; src: url("fonts/Sarabun-SemiBold.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Kanit"; font-weight: 500; src: url("fonts/Kanit-Medium.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Kanit"; font-weight: 600; src: url("fonts/Kanit-SemiBold.ttf") format("truetype"); font-display: swap; }
+
+:root {
+  --navy: #0d3b78; --blue: #1565c0; --sky: #e8f1fb; --ink: #1c2a3d; --muted: #5d6b80; --line: #d9e2ee;
+  --bg: #f3f6fb; --card: #ffffff;
+  --c-normal: #1e88e5; --c-comp: #ec6b9a; --c-ref: #f5a623;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Sarabun", system-ui, sans-serif; }
+h1, h2, h3 { font-family: "Kanit", "Sarabun", sans-serif; margin: 0; font-weight: 500; }
+a { color: var(--blue); }
+code { background: #eef2f8; padding: 1px 6px; border-radius: 4px; font-size: .92em; }
+.ico { flex: none; vertical-align: middle; }
+.muted { color: var(--muted); font-size: 14px; }
+.muted-t { fill: var(--muted); font-size: 16px; font-family: "Sarabun", sans-serif; }
+
+/* ---------------------------------------------------------- header */
+.top { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: linear-gradient(100deg, var(--navy), var(--blue)); color: #fff; }
+.logo { width: 54px; height: 54px; object-fit: contain; background: #fff; border-radius: 50%; padding: 3px; }
+.brand { display: grid; line-height: 1.25; } .brand b { font: 500 19px "Kanit", sans-serif; } .brand span { font-size: 14px; opacity: .85; }
+.title { margin-left: auto; text-align: right; } .title h1 { font-size: 26px; }
+.tabs { display: flex; gap: 4px; padding: 0 24px; background: #fff; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs a { padding: 12px 16px; text-decoration: none; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; font-weight: 600; }
+.tabs a.on { color: var(--blue); border-color: var(--blue); }
+main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 8px; display: grid; gap: 18px; }
+footer { max-width: 1280px; margin: 0 auto; padding: 12px 24px 28px; color: var(--muted); font-size: 13px; }
+
+/* ---------------------------------------------------------- toolbar / banners */
+.bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.bar select, button { font: inherit; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+button { background: var(--blue); color: #fff; border-color: var(--blue); cursor: pointer; }
+.range { color: var(--muted); }
+.audit-bar > div, .err-bar { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 10px 16px; font-size: 15px; }
+.audit-bar > div { background: #fff8e1; border: 1px solid #ffcc80; color: #6d4c00; }
+.err-bar { background: #fdecea; border: 1px solid #f5a3a3; color: #7f1d1d; }
+body.print .audit-bar { display: none; }
+
+/* ---------------------------------------------------------- KPI cards */
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.card { position: relative; border-radius: 16px; padding: 16px 18px 12px; color: #fff; box-shadow: 0 6px 16px rgba(13, 59, 120, .14); display: grid; gap: 2px; }
+.card h2 { font-size: 17px; padding-right: 44px; }
+.card .ci { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, .25); display: grid; place-items: center; }
+.card .big { margin: 4px 0 0; font: 600 40px/1.1 "Kanit", sans-serif; } .card .big small { font-size: 18px; font-weight: 500; opacity: .9; }
+.card .delta { margin: 0; font-size: 14px; opacity: .92; min-height: 21px; }
+.c-mothers { background: linear-gradient(135deg, #1565c0, #1e88e5); } .c-normal { background: linear-gradient(135deg, #00897b, #26a69a); }
+.c-abnormal { background: linear-gradient(135deg, #d6457c, #ec6b9a); } .c-referred { background: linear-gradient(135deg, #e08a00, #f5a623); }
+
+/* ---------------------------------------------------------- panels */
+.two { display: grid; grid-template-columns: 1.7fr 1fr; gap: 16px; align-items: start; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+.panel h3 { font-size: 18px; margin-bottom: 8px; color: var(--navy); }
+.key { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin-bottom: 4px; align-items: center; }
+.key i, .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; }
+.chart { width: 100%; height: auto; display: block; } .donut { width: min(260px, 100%); display: block; margin: 0 auto; }
+.chart .grid { stroke: var(--line); stroke-width: 1; } .chart .axis, .donut .axis { fill: var(--muted); font-size: 12px; font-family: "Sarabun", sans-serif; }
+.chart .val { fill: var(--ink); font: 600 13px "Sarabun", sans-serif; } .donut .d-total { fill: var(--ink); font: 600 34px "Kanit", sans-serif; }
+.legend { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; font-size: 15px; }
+.two.q { grid-template-columns: 2fr 1fr; }
+.qgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.qt { background: var(--sky); border-radius: 12px; padding: 10px 12px; display: grid; gap: 0; }
+.qt span { font-size: 14px; color: var(--muted); } .qt b { font: 600 24px "Kanit", sans-serif; color: var(--navy); } .qt b small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.qt em { font-style: normal; font-size: 12px; color: var(--muted); }
+.big.blue { font: 600 44px "Kanit", sans-serif; color: var(--blue); margin: 4px 0; } .big.blue small { font-size: 18px; font-weight: 500; color: var(--muted); }
+
+/* ---------------------------------------------------------- tables / check */
+.wide { overflow-x: auto; }
+.yt, .ft { border-collapse: collapse; width: 100%; font-size: 16px; }
+.yt th { background: #d98e8e; color: #fff; text-align: left; padding: 8px 12px; } .yt th:not(:first-child), .n { text-align: right; }
+.yt th { background: var(--navy); }
+.yt td { padding: 7px 12px; border-bottom: 1px solid var(--line); } .yt tr.sub td:first-child { padding-left: 30px; color: var(--muted); }
+.nodata { color: var(--muted); font-size: 14px; }
+.lead { margin: 0; color: var(--muted); }
+.chk { display: grid; gap: 6px; } .chk p { margin: 0; }
+.ft th { text-align: left; font-size: 13px; color: var(--muted); padding: 3px 8px; } .ft td { padding: 3px 8px; border-top: 1px solid var(--line); }
+.chip { font: 600 12px "Sarabun", sans-serif; padding: 2px 9px; border-radius: 99px; margin-right: 8px; vertical-align: middle; background: #e3f4ea; color: #1b6b3a; }
+.s-warn .chip { background: #fff1d6; color: #8a5a00; } .s-bad .chip { background: #fde0e0; color: #8a1c1c; }
+
+/* ---------------------------------------------------------- responsive */
+@media (max-width: 980px) { .cards { grid-template-columns: repeat(2, 1fr); } .two, .two.q { grid-template-columns: 1fr; } .qgrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) {
+  .top { padding: 10px 16px; flex-wrap: wrap; } .title { margin-left: 0; text-align: left; width: 100%; } .title h1 { font-size: 21px; }
+  main, .tabs, footer { padding-left: 16px; padding-right: 16px; } .cards { gap: 10px; } .card .big { font-size: 32px; } .card h2 { font-size: 15px; padding-right: 36px; }
+}
+@media print { .tabs, .bar, .audit-bar, footer { display: none; } body { background: #fff; } }
