@@ -1,0 +1,106 @@
+"""นิยามตัวชี้วัดห้องคลอด — ฟังก์ชันบริสุทธิ์ (ไม่ต่อฐานข้อมูล) รับ dict จาก loader.load_data
+
+หน่วยนับ: แม่ = 1 การคลอด (AN) · เด็ก = 1 ราย · รหัสทุกตัวมาจาก Config
+ตัวชี้วัดที่ไม่มีแหล่งข้อมูล → value None + status "nodata" (ห้ามแสดงเป็น 0)
+"""
+
+from collections import Counter
+
+KPI_KEYS = ("mothers", "normal", "abnormal", "cs", "forceps", "vacuum", "breech", "twins", "bba", "babies", "live",
+            "still", "neo_death7", "apgar1_low", "amph", "alcohol_smoke", "syphilis", "hiv", "hbv")
+
+LABELS = {
+    "mothers": "จำนวนมารดาที่คลอด", "normal": "คลอดปกติ", "abnormal": "คลอดผิดปกติ",
+    "cs": "ผ่าท้องคลอด", "forceps": "ใช้คีม", "vacuum": "ใช้เครื่องดูดสุญญากาศ",
+    "breech": "คลอดท่าก้นทางช่องคลอด", "twins": "ครรภ์แฝด", "bba": "มารดาคลอดก่อนถึงโรงพยาบาล",
+    "babies": "จำนวนเด็กเกิดทั้งหมด", "live": "จำนวนเด็กเกิดมีชีพ", "still": "จำนวนเด็กเกิดไร้ชีพ",
+    "neo_death7": "จำนวนเด็ก 0–7 วันตาย", "apgar1_low": "เด็กแรกเกิด Apgar score 1 นาที ≤ 7",
+    "amph": "มารดา Amphetamines", "alcohol_smoke": "มารดาติดสุรา/บุหรี่/คนใกล้ชิดสูบบุหรี่",
+    "syphilis": "มารดา Syphilis", "hiv": "มารดา HIV", "hbv": "มารดา Hep B",
+}
+
+
+def pct(n, d):
+    """ร้อยละ 1 ตำแหน่ง · ตัวหาร 0/None → None (ไม่ใช่ 0)"""
+    if not d or n is None:
+        return None
+    return round(n * 100.0 / d, 1)
+
+
+def _has(codes, prefixes):
+    return any(c.startswith(p) for c in codes for p in prefixes)
+
+
+def mother_ans(data):
+    """AN ของการคลอดที่ไม่ใช่การแท้ง"""
+    return [r["an"] for r in data["deliveries"] if not r["is_abort"]]
+
+
+def complication_prefixes(cfg):
+    return (tuple(cfg.dx_pph) + tuple(cfg.dx_preterm) + tuple(cfg.dx_htn) + tuple(cfg.dx_prolonged)
+            + tuple(cfg.dx_fetal_distress) + tuple(cfg.dx_prom))
+
+
+def _op_ans(data, cfg, which):
+    """AN ที่มีหัตถการ/Dx ของ which ∈ cs|forceps|vacuum|breech"""
+    icd9 = {"cs": cfg.cs_icd9, "forceps": cfg.forceps_icd9, "vacuum": cfg.vacuum_icd9, "breech": cfg.breech_icd9}[which]
+    icd10 = {"cs": (), "forceps": cfg.forceps_icd10, "vacuum": cfg.vacuum_icd10, "breech": cfg.breech_icd10}[which]
+    out = set()
+    for an in mother_ans(data):
+        if _has(data["ops_by_an"].get(an, ()), icd9) or (icd10 and _has(data["dx_by_an"].get(an, ()), icd10)):
+            out.add(an)
+    return out
+
+
+def normal_ans(data, cfg):
+    special = set()
+    for w in ("cs", "forceps", "vacuum", "breech"):
+        special |= _op_ans(data, cfg, w)
+    comp = complication_prefixes(cfg)
+    return {an for an in mother_ans(data)
+            if _has(data["dx_by_an"].get(an, ()), cfg.normal_icd)
+            and not _has(data["dx_by_an"].get(an, ()), comp) and an not in special}
+
+
+def stillbirth_ans(data, cfg):
+    mothers = set(mother_ans(data))
+    out = {an for an in mothers if _has(data["dx_by_an"].get(an, ()), cfg.stillbirth_icd10)}
+    out |= {r["an"] for r in data["infants"]
+            if r["an"] in mothers and r.get("infant_icd10") and _has([r["infant_icd10"].replace(".", "").upper()],
+                                                                    cfg.stillbirth_icd10)}
+    return out
+
+
+def twin_ans(data):
+    mothers = set(mother_ans(data))
+    out = {r["an"] for r in data["deliveries"] if r["twin"] and not r["is_abort"]}
+    per_mother = Counter(r["ipt_labour_id"] for r in data["infants"])
+    out |= {r["an"] for r in data["infants"] if per_mother[r["ipt_labour_id"]] >= 2}
+    return out & mothers
+
+
+def _row(key, value, status="ok"):
+    return {"key": key, "label": LABELS[key], "value": value, "status": status}
+
+
+def kpi_rows(data, cfg):
+    mothers = mother_ans(data)
+    normal = normal_ans(data, cfg)
+    still = stillbirth_ans(data, cfg)
+    babies = len(data["infants"])
+    v = {
+        "mothers": len(mothers), "normal": len(normal), "abnormal": len(mothers) - len(normal),
+        "cs": len(_op_ans(data, cfg, "cs")), "forceps": len(_op_ans(data, cfg, "forceps")),
+        "vacuum": len(_op_ans(data, cfg, "vacuum")), "breech": len(_op_ans(data, cfg, "breech")),
+        "twins": len(twin_ans(data)),
+        "bba": len({r["an"] for r in data["infants"] if r["bba_type"] in cfg.bba_types}),
+        "babies": babies, "still": len(still), "live": babies - len(still),
+        "neo_death7": sum(1 for r in data["infants"]
+                          if r["dead"] and r["an"] not in still and r["days_to_dch"] is not None
+                          and r["days_to_dch"] <= 7),
+        "apgar1_low": sum(1 for r in data["infants"] if r["apgar1"] is not None and r["apgar1"] <= cfg.apgar1_max),
+    }
+    rows = []
+    for key in KPI_KEYS:
+        rows.append(_row(key, v[key]) if key in v else _row(key, None, "nodata"))
+    return rows
