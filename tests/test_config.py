@@ -48,3 +48,9 @@ def test_config_is_frozen():
     import pytest
     with pytest.raises(dataclasses.FrozenInstanceError):
         load_config({}).apgar1_max = 1
+
+
+def test_lab_defaults_match_labour_lab_master():
+    # labour_lab ของ รพ.วังน้ำเขียว: 1 = VDRL, 2 = Anti HIV, 3 = HBsAg (docs/schema-notes.md)
+    c = load_config({})
+    assert (c.syphilis_labs, c.hiv_labs, c.hbv_labs) == (("1",), ("2",), ("3",))

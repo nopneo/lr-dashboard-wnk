@@ -60,10 +60,10 @@ class Config:
     dx_prolonged: tuple = ("O63",)
     dx_fetal_distress: tuple = ("O68",)
     dx_prom: tuple = ("O42",)
-    # lab ตอนคลอด (ว่าง = ยังไม่ตั้ง — ดู docs/schema-notes.md)
-    syphilis_labs: tuple = ()
-    hiv_labs: tuple = ()
-    hbv_labs: tuple = ()
+    # lab ตอนคลอด = labour_lab.lab_id ใน ipt_labour_lab (ดู docs/schema-notes.md) · amph ยังไม่มีแหล่ง
+    syphilis_labs: tuple = ("1",)   # labour_lab.lab_id: 1 = VDRL
+    hiv_labs: tuple = ("2",)        # 2 = Anti HIV
+    hbv_labs: tuple = ("3",)        # 3 = HBsAg
     amph_labs: tuple = ()
     refer_dx_prefix: tuple = ("O",)
 
