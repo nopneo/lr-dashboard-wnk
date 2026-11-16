@@ -8,3 +8,5 @@ out/
 dist/
 .pytest_cache/
 .claude/
+
+video/
