@@ -108,3 +108,74 @@ def test_session_cookie_has_own_name_and_is_httponly(client):
     r = do_login(client)
     cookies = " ".join(r.headers.getlist("Set-Cookie"))
     assert "lr_session=" in cookies and "HttpOnly" in cookies and "SameSite=Lax" in cookies
+
+
+# ---------------------------------------------------------------- passkey (เข้ารายชื่อด้วยรหัสผ่านร่วมของหน่วย · ไม่ต้องมีบัญชี)
+
+PASSKEY = "test-passkey-77"
+
+
+def pk_login(client, key=PASSKEY, next_=None):
+    tok = csrf(client)
+    url = "/login" + (f"?next={next_}" if next_ else "")
+    return client.post(url, data={"passkey": key, "csrf": tok})
+
+
+def test_login_page_offers_passkey_only_when_configured(client, monkeypatch):
+    assert 'name="passkey"' not in client.get("/login").get_data(as_text=True)
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    assert 'name="passkey"' in client.get("/login").get_data(as_text=True)
+
+
+def test_passkey_login_opens_list_and_audit_names_passkey(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    r = pk_login(client)
+    assert r.status_code == 302
+    assert "6900001" in client.get("/list/normal").get_data(as_text=True)
+    assert any(a["username"] == "passkey" and a["action"] == "view_list" for a in store.audit(limit=20))
+
+
+def test_wrong_passkey_rejected_and_logged(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    r = pk_login(client, key="nope")
+    assert r.status_code == 200 and "ไม่ถูกต้อง" in r.get_data(as_text=True)
+    assert client.get("/list/normal").status_code == 302
+    assert store.recent_failures("passkey", None, 15)[0] == 1
+
+
+def test_passkey_ignored_when_not_configured(client, monkeypatch):
+    monkeypatch.delenv("LR_PASSKEY", raising=False)
+    assert pk_login(client, key="").status_code == 200
+    assert pk_login(client, key=PASSKEY).status_code == 200
+    assert client.get("/list/normal").status_code == 302
+
+
+def test_changing_passkey_logs_everyone_out(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    pk_login(client)
+    assert client.get("/list/normal").status_code == 200
+    monkeypatch.setenv("LR_PASSKEY", "another-passkey-88")
+    assert client.get("/list/normal").status_code == 302
+    monkeypatch.delenv("LR_PASSKEY")
+    assert client.get("/list/normal").status_code == 302
+
+
+def test_passkey_lockout_after_too_many_failures(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    for _ in range(lr_app.LOGIN_MAX_USER):
+        pk_login(client, key="wrong")
+    assert pk_login(client).status_code == 429
+
+
+def test_passkey_login_still_requires_csrf_and_blocks_open_redirect(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    client.get("/login")
+    assert client.post("/login", data={"passkey": PASSKEY}).status_code == 400
+    r = pk_login(client, next_="//evil.example")
+    assert r.status_code == 302 and "evil" not in r.headers["Location"]
+
+
+def test_username_password_login_still_works_with_passkey_on(client, monkeypatch):
+    monkeypatch.setenv("LR_PASSKEY", PASSKEY)
+    assert do_login(client).status_code == 302
+    assert client.get("/list/normal").status_code == 200

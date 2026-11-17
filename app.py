@@ -3,6 +3,7 @@
 หน้าหลัก/ส่งออก = จำนวนนับเท่านั้น · รายชื่อหลัง login (ดู Task 7) · /check เปิดเฉพาะ LAN
 """
 
+import hmac
 import ipaddress
 import os
 import re
@@ -347,9 +348,26 @@ def _list_gate():
         abort(403)
 
 
+#: ผู้ใช้สมมติของ passkey — ไม่มีแถวในตาราง users · audit log ลงชื่อ "passkey" (ไม่รู้ว่าเป็นใคร จึงแนะนำบัญชีรายคนเมื่อต้องการตรวจสอบย้อนหลัง)
+PASSKEY_USER = {"id": 0, "username": "passkey", "display": "passkey", "is_admin": 0, "active": 1}
+
+
+def _passkey():
+    """LR_PASSKEY = รหัสผ่านร่วมของหน่วย (ไม่ตั้ง = ปิด) · อ่านทุกครั้งที่เรียก เพื่อให้เปลี่ยนแล้วมีผลหลัง restart เท่านั้น"""
+    return os.getenv("LR_PASSKEY", "")
+
+
+def _passkey_tag():
+    """ลายนิ้วมือของ passkey ที่เก็บใน session — เปลี่ยน passkey แล้วทุกคนที่เข้าไว้ถูกเตะออก"""
+    return hmac.new(app.secret_key.encode(), b"passkey:" + _passkey().encode(), "sha256").hexdigest()
+
+
 def _load_user():
     uid = session.get("uid") if list_enabled() else None
     g.user = store.get_user(uid) if uid else None
+    tag = session.get("pk") if list_enabled() else None
+    if g.user is None and tag and _passkey() and hmac.compare_digest(tag, _passkey_tag()):
+        g.user = dict(PASSKEY_USER)
     return g.user
 
 
@@ -384,7 +402,7 @@ def _check_csrf():
 @app.context_processor
 def _list_ctx():
     return {"list_on": list_enabled(), "csrf_token": _csrf_token if list_enabled() else (lambda: ""),
-            "user": g.get("user")}
+            "user": g.get("user"), "passkey_on": bool(_passkey())}
 
 
 def _safe_next(nxt):
@@ -402,21 +420,30 @@ def login():
     _list_gate()
     if request.method == "POST":
         _check_csrf()
-        username = request.form.get("username", "").strip()[:64]
+        by_passkey = "passkey" in request.form
+        username = "passkey" if by_passkey else request.form.get("username", "").strip()[:64]
         by_user, by_ip = store.recent_failures(username, _client_ip(), LOGIN_WINDOW)
         if by_user >= LOGIN_MAX_USER or by_ip >= LOGIN_MAX_IP:
             flash(f"ใส่รหัสผิดหลายครั้งเกินไป ลองใหม่อีก {LOGIN_WINDOW} นาที")
             return render_template("login.html"), 429
-        u = store.check_login(username, request.form.get("password", ""))
+        if by_passkey:
+            want = _passkey()
+            ok = bool(want) and hmac.compare_digest(request.form.get("passkey", "").encode(), want.encode())
+            u = dict(PASSKEY_USER) if ok else None
+        else:
+            u = store.check_login(username, request.form.get("password", ""))
         if u:
             session.clear()
             session.permanent = True
-            session["uid"] = u["id"]
+            if by_passkey:
+                session["pk"] = _passkey_tag()
+            else:
+                session["uid"] = u["id"]
             g.user = u
             _audit_log("login")
             return redirect(_safe_next(request.args.get("next") or "") or url_for("list_index"))
         store.log(username, "login_fail", ip=_client_ip())
-        flash("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
+        flash("passkey ไม่ถูกต้อง" if by_passkey else "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
     return render_template("login.html")
 
 

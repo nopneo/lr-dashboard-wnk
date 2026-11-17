@@ -12,9 +12,17 @@
   <h1>LR Dashboard</h1>
   <p class="muted">รายชื่อผู้คลอด · {{ hospital }}</p>
   {% for m in get_flashed_messages() %}<div class="err-bar">{{ m }}</div>{% endfor %}
+  {% if passkey_on %}
   <form method="post" class="panel login-card">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <label>ชื่อผู้ใช้<input name="username" autocomplete="username" required autofocus></label>
+    <label>passkey<input name="passkey" type="password" autocomplete="off" required autofocus></label>
+    <button type="submit">เข้าดูรายชื่อ</button>
+  </form>
+  <p class="muted">หรือเข้าด้วยบัญชีผู้ใช้</p>
+  {% endif %}
+  <form method="post" class="panel login-card">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>ชื่อผู้ใช้<input name="username" autocomplete="username" required{% if not passkey_on %} autofocus{% endif %}></label>
     <label>รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required></label>
     <button type="submit">เข้าสู่ระบบ</button>
   </form>
