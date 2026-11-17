@@ -179,3 +179,44 @@ def test_username_password_login_still_works_with_passkey_on(client, monkeypatch
     monkeypatch.setenv("LR_PASSKEY", PASSKEY)
     assert do_login(client).status_code == 302
     assert client.get("/list/normal").status_code == 200
+
+
+# ---------------------------------------------------------------- ส่งออกรายชื่อ (CSV)
+
+def test_list_page_has_csv_export_button(client):
+    do_login(client)
+    html = client.get("/list/normal").get_data(as_text=True)
+    assert "format=csv" in html and "ส่งออก" in html
+
+
+def test_csv_export_requires_login(client):
+    r = client.get("/list/normal?format=csv")
+    assert r.status_code == 302 and "/login?next=" in r.headers["Location"]
+
+
+def test_csv_export_content_headers_and_audit(client):
+    do_login(client)
+    r = client.get("/list/normal?format=csv")
+    assert r.status_code == 200
+    assert r.mimetype == "text/csv" and "attachment" in r.headers["Content-Disposition"]
+    assert ".csv" in r.headers["Content-Disposition"] and r.headers["Cache-Control"] == "no-store"
+    raw = r.get_data()
+    assert raw.startswith(b"\xef\xbb\xbf")                      # BOM ให้ Excel อ่านภาษาไทยถูก
+    lines = raw.decode("utf-8-sig").splitlines()
+    assert lines[0].split(",")[:3] == ["วันที่คลอด", "HN", "AN"]
+    assert any("6900001" in ln and "000777" in ln and "นางทดสอบ ตัวอย่าง" in ln for ln in lines[1:])
+    assert ("export_list", "k=normal") == next((a["action"], a["detail"].split(" ")[0]) for a in store.audit("nurse1")
+                                                if a["action"] == "export_list")
+
+
+def test_csv_export_neutralises_spreadsheet_formulas(client, monkeypatch):
+    monkeypatch.setattr(queries, "case_names", lambda ans: {"6900001": {"hn": "000777", "name": "=HYPERLINK(\"http://x\")"}})
+    do_login(client)
+    body = client.get("/list/normal?format=csv").get_data(as_text=True)
+    assert ",'=HYPERLINK" in body or ",\"'=HYPERLINK" in body
+    assert ",=HYPERLINK" not in body
+
+
+def test_csv_export_unknown_key_is_404(client):
+    do_login(client)
+    assert client.get("/list/nope?format=csv").status_code == 404

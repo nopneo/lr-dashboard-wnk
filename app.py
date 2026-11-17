@@ -3,6 +3,7 @@
 หน้าหลัก/ส่งออก = จำนวนนับเท่านั้น · รายชื่อหลัง login (ดู Task 7) · /check เปิดเฉพาะ LAN
 """
 
+import csv
 import hmac
 import ipaddress
 import os
@@ -13,7 +14,7 @@ import threading
 import urllib.parse
 from datetime import date, timedelta
 from functools import wraps
-from io import BytesIO
+from io import BytesIO, StringIO
 from urllib.parse import urlsplit
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, session, url_for
@@ -469,6 +470,26 @@ def list_index():
     return render_template("list_index.html", keys=listing.KEYS, fy=fy, fy_list=fy_options(n=8), d1=d1, d2=d2)
 
 
+def _csv_cell(v):
+    """กัน Excel ตีความข้อความที่ขึ้นต้นด้วย = + - @ เป็นสูตร (CSV injection) — ชื่อมาจากฐานข้อมูล ไม่ควรเชื่อถือ"""
+    v = "" if v is None else str(v)
+    return "'" + v if v[:1] in ("=", "+", "-", "@", chr(9), chr(13)) else v
+
+
+def _list_csv(key, head, rows, d1, d2):
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(head)
+    for r in rows:
+        d = r["date"]
+        w.writerow([_csv_cell(f"{d.day:02d}/{d.month:02d}/{d.year + 543}" if d else ""), _csv_cell(r["hn"]),
+                    _csv_cell(r["an"]), _csv_cell(r["name"]), _csv_cell(r["dx"])])
+    resp = app.make_response(buf.getvalue().encode("utf-8-sig"))     # BOM: Excel อ่านภาษาไทยถูก
+    resp.mimetype = "text/csv"
+    resp.headers["Content-Disposition"] = f'attachment; filename="lr_{key}_{d1}_{d2}.csv"'
+    return resp
+
+
 @app.route("/list/<key>")
 @login_required
 def list_page(key):
@@ -484,6 +505,9 @@ def list_page(key):
         app.logger.exception("case_names failed")
         names = {}
     head, rows = listing.table(ans, data, names)
+    if request.args.get("format") == "csv":
+        _audit_log("export_list", f"k={key} d={d1}..{d2} n={len(rows)}")
+        return _no_store(_list_csv(key, head, rows, d1, d2))
     _audit_log("view_list", f"k={key} d={d1}..{d2} n={len(rows)}")
     return _no_store(app.make_response(render_template("list.html", key=key, title=listing.KEYS[key], head=head,
                                                        rows=rows, d1=d1, d2=d2, fy=fy)))
