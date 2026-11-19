@@ -286,6 +286,7 @@ def test_install_explains_lan_nets_for_non_rfc1918_hospital_networks():
     assert "LR_LAN_NETS" in t and "IP สาธารณะจริงของ รพ." in t and "192.168.x.x" in t
     assert "ห้ามใส่ IP บ้าน" in t and "LR_LIST_LAN_ONLY=0" in t
     assert "30.25.1.0/24" not in t          # วงนี้ของ รพ.วังน้ำเขียวปิดแล้ว — ไม่ใช้เป็นตัวอย่าง
+    assert "lan.wnkhos.go.th" in t and "DNS only" in t and "--dns-cloudflare" in t   # ทางเข้าภายใน (ข้อ 6.1)
 
 
 # ---------------------------------------------------------------- #12 ส่งออกที่ไม่ต้อง login ต้องจำกัด
