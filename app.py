@@ -25,6 +25,7 @@ import db
 import listing
 import loader
 import metrics
+import privacy
 import queries
 import render
 import store
@@ -284,6 +285,8 @@ THAI_MONTHS = ("", "มกราคม", "กุมภาพันธ์", "ม�
 
 @app.template_filter("num")
 def _num_filter(v):
+    if isinstance(v, str):          # "<5" จาก privacy.py (หน้าสาธารณะ)
+        return v
     return "—" if v is None else f"{v:,}"
 
 
@@ -299,12 +302,27 @@ def healthz():
     return "ok"
 
 
+def _public_view():
+    """คนนอก รพ. ที่ไม่ได้ login → ช่วงกำหนดเองปัดเป็นเดือนเต็ม และช่องอ่อนไหวที่น้อยกว่า 5 แสดง "<5" (privacy.py)
+    public=1 = บังคับโหมดสาธารณะ (ใช้ตอนส่งออกไฟล์ให้คนนอก เพราะ chromium เรียกหน้าเว็บจาก 127.0.0.1 ซึ่งนับเป็น LAN)"""
+    if not privacy.enabled():
+        return False
+    if request.args.get("public") == "1":
+        return True
+    if _from_lan():
+        return False
+    return not (list_enabled() and _load_user())
+
+
 @app.route("/")
 def index():
     d1, d2, fy = resolve_range(request.args)
+    public = _public_view()
+    if public and fy is None:
+        d1, d2 = privacy.month_window(d1, d2)
     ctx = build_context(d1, d2, fy)
-    return render_template("dashboard.html", d=ctx, fy=fy, fy_list=fy_options(n=8),
-                           print_mode=request.args.get("print") == "1")
+    return render_template("dashboard.html", d=privacy.public_ctx(ctx) if public else ctx, fy=fy,
+                           fy_list=fy_options(n=8), print_mode=request.args.get("print") == "1", public_view=public)
 
 
 @app.route("/yearly")
@@ -312,8 +330,11 @@ def yearly():
     cfg = load_config()
     years = fy_options(n=6)[::-1]   # 5 ปีงบที่ผ่านมา + ปีปัจจุบัน (ครอบคลุมปีเดียวกับ kpi.jpg)
     table = metrics.yearly_table(lambda a, b: _data(a, b, cfg), years, cfg)
+    public = _public_view()
+    if public:
+        table = privacy.public_yearly(table)
     today = date.today()
-    return render_template("yearly.html", t=table, print_mode=request.args.get("print") == "1",
+    return render_template("yearly.html", t=table, public_view=public, print_mode=request.args.get("print") == "1",
                            partial_years=[y for y in years if fy_range(y)[1] > today],
                            year_errors=[(y, e) for y, e in zip(years, table["errors"]) if e])
 
@@ -529,10 +550,12 @@ def export(fmt):
         return {"error": "รองรับเฉพาะ png, jpg, pdf" if EXPORT_ENABLED else "ปิดการส่งออกไฟล์"}, 404
     # ส่งออกเฉพาะ "ปีงบ" (ไม่รับ d1/d2 เอง) — หน้านี้ไม่ต้อง login จึงจำกัดจำนวนชุดที่ต้องเรนเดอร์ (chromium หนัก)
     fy = _parse_fy(request.args.get("fy")) or current_fy()
-    qs = urllib.parse.urlencode({"fy": fy, "print": "1"})
+    public = _public_view()
+    qs = urllib.parse.urlencode({"fy": fy, "print": "1", **({"public": "1"} if public else {})})
     url = f"http://127.0.0.1:{os.getenv('PORT', '5400')}/?{qs}"
     name = f"lr_{fy}.{fmt}"
-    blob = _export_cache.get(name, EXPORT_CACHE_TTL)
+    cache_key = name + ("|public" if public else "")            # ไฟล์ของคนนอกต้องไม่ได้ฉบับเต็มจาก cache
+    blob = _export_cache.get(cache_key, EXPORT_CACHE_TTL)
     if blob is not None:
         return send_file(BytesIO(blob), mimetype=MIME[fmt], as_attachment=True, download_name=name)
     if not _render_lock.acquire(timeout=EXPORT_WAIT):
@@ -542,7 +565,7 @@ def export(fmt):
             out = os.path.join(tmp, name)
             render.render_to(fmt, url, out)
             blob = open(out, "rb").read()
-        _export_cache.set(name, blob)
+        _export_cache.set(cache_key, blob)
         return send_file(BytesIO(blob), mimetype=MIME[fmt], as_attachment=True, download_name=name)
     except Exception as e:                                       # noqa: BLE001
         app.logger.exception("export failed")

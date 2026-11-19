@@ -8,7 +8,7 @@ import re
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FILES = ["app.py", "audit.py", "cache.py", "charts.py", "config.py", "db.py", "listing.py", "loader.py", "manage.py",
+FILES = ["app.py", "audit.py", "cache.py", "charts.py", "config.py", "db.py", "listing.py", "loader.py", "manage.py", "privacy.py",
          "metrics.py", "queries.py", "render.py", "store.py", "setup_check.py", "build_dist.py",
          "requirements.txt", ".env.example", "README.md", "INSTALL.md", "SECURITY.md", "CHANGELOG.md",
          "Dockerfile", ".dockerignore", "LICENSE", "NOTICE.md",
