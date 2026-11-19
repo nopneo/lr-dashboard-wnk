@@ -283,7 +283,9 @@ def test_list_lan_only_can_be_switched_off_explicitly(monkeypatch):
 
 def test_install_explains_lan_nets_for_non_rfc1918_hospital_networks():
     t = open(os.path.join(HERE, "INSTALL.md"), encoding="utf-8").read()
-    assert "LR_LAN_NETS" in t and "30.25.1.0/24" in t
+    assert "LR_LAN_NETS" in t and "IP สาธารณะจริงของ รพ." in t and "192.168.x.x" in t
+    assert "ห้ามใส่ IP บ้าน" in t and "LR_LIST_LAN_ONLY=0" in t
+    assert "30.25.1.0/24" not in t          # วงนี้ของ รพ.วังน้ำเขียวปิดแล้ว — ไม่ใช้เป็นตัวอย่าง
 
 
 # ---------------------------------------------------------------- #12 ส่งออกที่ไม่ต้อง login ต้องจำกัด
