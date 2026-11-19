@@ -32,7 +32,7 @@ CATCH_ALL = "    ProxyPass / http://127.0.0.1:3000/"
 REWRITE_ANCHOR = "    RewriteRule ^/ipd$ /ipd/ [R=302,L]"
 SOURCE_ENV = "/opt/ipd/.env"
 #: เครื่องที่นับว่า "อยู่ใน รพ." (ไม่ใช่ที่อยู่ส่วนตัว RFC1918): วง LAN ของ รพ. + IP สาธารณะของ รพ. (เข้าผ่าน Cloudflare)
-LAN_NETS = "30.25.1.0/24,183.88.214.202/32"
+LAN_NETS = "183.88.214.202/32"      # IP สาธารณะจริงของ รพ. (เข้าผ่าน Cloudflare) · เครื่องใน รพ. ใช้ 192.168.x.x นับเป็น LAN อยู่แล้ว · ห้ามใส่ IP บ้าน
 
 LOCAL = os.path.dirname(os.path.abspath(__file__))
 
