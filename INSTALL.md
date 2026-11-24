@@ -58,13 +58,31 @@ cp .env.example .env && chmod 600 .env      # แล้วแก้ DB_HOST / DB
 Description=LR Dashboard
 After=network.target
 [Service]
+# ไม่ใช้ root: ผู้ใช้ของแอปเอง (useradd -r -s /sbin/nologin lr) · เขียนได้เฉพาะ data/ (ฐาน login + audit log)
+# ไม่ใช่ root แล้ว chromium (ปุ่มส่งออก) เปิด sandbox ของตัวเองได้
+User=lr
+Group=lr
 WorkingDirectory=/opt/lr_dashboard
 EnvironmentFile=/opt/lr_dashboard/.env
-ExecStart=/opt/lr_dashboard/.venv/bin/gunicorn --bind 0.0.0.0:5400 --workers 2 --threads 8 --timeout 120 app:app
+Environment=HOME=/var/lib/lr
+StateDirectory=lr
+# ฟังเฉพาะ 127.0.0.1 หลัง Apache — ห้าม 0.0.0.0 (เครื่องใน LAN จะ login ผ่าน http ตรงโดยไม่เข้ารหัส)
+ExecStart=/opt/lr_dashboard/.venv/bin/gunicorn --bind 127.0.0.1:5400 --workers 2 --threads 8 --timeout 120 app:app
 Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/lr_dashboard/data
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
 [Install]
 WantedBy=multi-user.target
 ```
+
+สิทธิ์ไฟล์: `chown root:lr .env && chmod 640 .env` · `chown -R lr:lr data && chmod 700 data` (ไฟล์ใน data/ เป็น 600)
 
 ```bash
 sudo systemctl enable --now lr-dashboard && curl -s localhost:5400/healthz    # ต้องได้ ok

@@ -144,6 +144,9 @@ def _nets(spec):
 
 CF_NETS = _nets(os.getenv("LR_CF_RANGES", _CF_DEFAULT))
 LAN_NETS = _nets(os.getenv("LR_LAN_NETS", ""))      # เครือข่ายเพิ่มเติมที่นับเป็น "ใน รพ."
+#: IP ภายในมาตรฐาน — ระบุเอง ไม่ใช้ ip.is_private ที่นับช่วงสาธารณะบางช่วงเป็น private ด้วย
+#: (เช่น 198.18.0.0/15, 203.0.113.0/24)
+PRIVATE_NETS = _nets("10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7")
 
 
 def _is_cf(ip):
@@ -170,11 +173,13 @@ def _from_lan():
         ip = ipaddress.ip_address((_client_ip() or "").strip())
     except ValueError:
         return False
+    if getattr(ip, "ipv4_mapped", None):
+        ip = ip.ipv4_mapped
     if any(ip in n for n in LAN_NETS):
         return True
     if request.headers.get("CF-Connecting-IP", "").strip():
         return False
-    return ip.is_private or ip.is_loopback
+    return any(ip in n for n in PRIVATE_NETS)
 
 
 def _check_allowed():
